@@ -16,11 +16,11 @@ Source: Strength Level, Shiba Muscle
 - 55: Nov=0, Int=7, Adv=16, Elite=26
 
 ### Push-up Standards (Male, by Age)
-Source: Cooper Institute (2013 Monograph), max reps to fatigue
-Estimated from 1-min Cooper norms × 1.3 conversion factor
-- 20-29: 25th=31, 50th=43, 75th=57, 95th=81
-- 30-39: 25th=25, 50th=35, 75th=47, 95th=68
-- 40-49: 25th=17, 50th=27, 75th=38, 95th=52
+Source: Strength Level (2,900,000 lifts)
+- 20-29: Nov=20, Int=41, Adv=68, Eli=99
+- 30-39: Nov=18, Int=41, Adv=68, Eli=99
+- 40-49: Nov=16, Int=38, Adv=64, Eli=92
+- 50-59: Nov=10, Int=28, Adv=50, Eli=75
 
 ## Bodyweight Scaling
 
@@ -83,17 +83,17 @@ The program's advanced methods (cluster sets, EMOM, supersets) require
 a base of muscular endurance and connective tissue adaptation to be
 safe and effective.
 
-### Entry Thresholds (Male)
+### Entry Thresholds (Male, age 30)
 | BW (kg) | Min Pull-ups | Min Push-ups |
 |---------|-------------|-------------|
-| 50-59   | 15          | 35          |
-| 60-69   | 15          | 33          |
-| 70-79   | 14          | 31          |
-| 80-89   | 14          | 29          |
-| 90-99   | 13          | 27          |
-| 100-109 | 12          | 25          |
-| 110-119 | 11          | 23          |
-| 120+    | 10          | 21          |
+| 50-59   | 14          | 41          |
+| 60-69   | 14          | 41          |
+| 70-79   | 14          | 41          |
+| 80-89   | 14          | 40          |
+| 90-99   | 13          | 39          |
+| 100-109 | 12          | 37          |
+| 110-119 | 11          | 36          |
+| 120+    | 10          | 34          |
 
 Age correction: multiply threshold by age factor
 - 20-40: ×1.0
@@ -107,14 +107,14 @@ Age correction: multiply threshold by age factor
 Based on Elite/Pro standards (95th percentile):
 | BW (kg) | Pull-up Ceiling | Push-up Ceiling |
 |---------|----------------|-----------------|
-| 50-59   | 40             | 90              |
-| 60-69   | 37             | 85              |
-| 70-79   | 35             | 80              |
-| 80-89   | 33             | 75              |
-| 90-99   | 30             | 70              |
-| 100-109 | 28             | 65              |
-| 110-119 | 26             | 60              |
-| 120+    | 25             | 55              |
+| 50-59   | 37             | 99              |
+| 60-69   | 37             | 99              |
+| 70-79   | 35             | 96              |
+| 80-89   | 33             | 91              |
+| 90-99   | 30             | 86              |
+| 100-109 | 28             | 81              |
+| 110-119 | 26             | 77              |
+| 120+    | 25             | 73              |
 
 Age correction same as above.
 Goals beyond 90% of ceiling receive a warning.
@@ -123,7 +123,7 @@ Goals beyond ceiling are capped at 95% of ceiling.
 ## Ceiling Model: Why Goals Are Capped
 
 ### What is the ceiling?
-The ceiling is the **95th percentile** of normative data (the "Elite" level). Based on Strength Level's 4.8M lift database, only ~5% of athletes at a given bodyweight achieve this result. Goals above the ceiling are capped at 95% of the ceiling value.
+The ceiling is the **95th percentile** of normative data (the "Elite" level). Based on Strength Level's databases (4.8M pull-up + 2.9M push-up lifts), only ~5% of athletes at a given bodyweight achieve this result. Goals above the ceiling are capped at 95% of the ceiling value.
 
 ### Why does the ceiling depend on bodyweight?
 Pull-ups and push-ups are bodyweight exercises. Heavier athletes move more mass per repetition. Vanderburgh (2006, 2007) demonstrated allometric scaling: 1RM ~ M^(2/3), meaning relative strength decreases with mass by a physical law, not by choice. Sanchez-Moreno et al. (2016) confirmed r = -0.55 correlation between body mass and pull-up performance.
@@ -131,7 +131,7 @@ Pull-ups and push-ups are bodyweight exercises. Heavier athletes move more mass 
 **Example**: A 60kg athlete does pull-ups with 0kg external load. A 100kg athlete does pull-ups with the equivalent of 40kg extra. This 40kg difference explains the lower ceiling.
 
 ### Why is 100 push-ups at 100kg unrealistic?
-Strength Level data shows the elite (95th percentile) result for 100kg males is 59 push-ups. 100 push-ups would require a 170th percentile result — statistically non-existent in this weight class. Each push-up at 100kg moves ~70kg (64% of mass on arms in the top position). A 65kg athlete moves ~45kg. The 25kg-per-rep difference × 100 reps = 2,500kg of additional work.
+Strength Level data (2.9M lifts) shows the elite (95th percentile) result for 100kg males is 81 push-ups. 100 push-ups would require a 123rd percentile result — statistically non-existent in this weight class. Each push-up at 100kg moves ~70kg (64% of mass on arms in the top position). A 65kg athlete moves ~45kg. The 25kg-per-rep difference × 100 reps = 2,500kg of additional work. 100 push-ups is realistic at ~60-65 kg (elite level: 95-102).
 
 ### Why cap at 95% of ceiling, not 100%?
 Schoenfeld et al. (2023) demonstrated that muscular adaptation follows a logarithmic curve with diminishing returns. Near the ceiling, progression rate drops sharply. There is no evidence base for training programming in the 95-100% zone — insufficient data exists on what methods work. 95% is a conservative boundary beyond which we cannot guarantee safety and efficacy.
