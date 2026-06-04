@@ -44,10 +44,17 @@ export function getPushUpWeeklyRate(current, ceiling, weeksTrained) {
   return baseRate * getWeeklyRate(current, ceiling, weeksTrained);
 }
 
+// ── Supercompensation during deload weeks ──────────────────────
+// Small performance gain during deload due to fatigue dissipation
+// Schoenfeld (2021): supercompensation effect ~2-5% of weekly rate
+export const DELOAD_SUPERCOMP_PULL = 0.05;  // ~0.05 reps supercompensation per deload week
+export const DELOAD_SUPERCOMP_PUSH = 0.10;  // ~0.10 reps supercompensation per deload week
+
 // ── Estimate weeks to reach goal ───────────────────────────────
 // Uses discrete simulation (week-by-week) for accuracy
 export function estimateWeeksToGoal(current, goal, ceiling, exerciseType) {
   const rateFn = exerciseType === 'pull' ? getPullUpWeeklyRate : getPushUpWeeklyRate;
+  const deloadGain = exerciseType === 'pull' ? DELOAD_SUPERCOMP_PULL : DELOAD_SUPERCOMP_PUSH;
   let level = current;
   let weeks = 0;
   const maxWeeks = 200; // safety limit
@@ -56,10 +63,9 @@ export function estimateWeeksToGoal(current, goal, ceiling, exerciseType) {
     const rate = rateFn(level, ceiling, weeks);
     level += rate;
     weeks++;
-    // Deload every 4th week (no progress)
+    // Deload every 4th week: supercompensation gain
     if (weeks % 4 === 0) {
-      // Deload week: slight supercompensation (+0.1)
-      level += 0.1;
+      level += deloadGain;
     }
   }
   
@@ -154,9 +160,9 @@ export function simulateProgression(profile, goals, ceiling) {
       pullLevel += getPullUpWeeklyRate(pullLevel, pullCeiling, w);
       pushLevel += getPushUpWeeklyRate(pushLevel, pushCeiling, w);
     } else {
-      // Supercompensation during deload
-      pullLevel += 0.05;
-      pushLevel += 0.1;
+      // Supercompensation during deload (unified constants)
+      pullLevel += DELOAD_SUPERCOMP_PULL;
+      pushLevel += DELOAD_SUPERCOMP_PUSH;
     }
     
     // Cap at ceiling
