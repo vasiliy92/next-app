@@ -139,6 +139,72 @@ export function isVolumeJumpSafe(prevWeekVol, currentWeekVol) {
   return increase <= 0.30;
 }
 
+// ── Session duration estimation ──────────────────────────────────
+// Estimates total session time from exercises, sets, reps, rest, and tempo
+// Returns duration in minutes. Tempo format: "SEXP" (eccentric-pause-concentric-pause)
+// Each rep ≈ (S+E+X+P) seconds, where X=1 (explosive)
+export function estimateSessionDuration(exercises) {
+  let totalSeconds = 0;
+  
+  for (const ex of exercises) {
+    const sets = ex.sets || 1;
+    const reps = ex.reps || 1;
+    const rest = ex.rest || 60;
+    
+    // Parse tempo: "20X1" → 2+0+1+1 = 4s per rep; "2020" → 2+0+2+0 = 4s per rep
+    const tempo = ex.tempo || '20X1';
+    const tempoDigits = tempo.replace(/X/gi, '1').split('').map(Number);
+    const secondsPerRep = (tempoDigits[0] || 2) + (tempoDigits[1] || 0) + 
+                          (tempoDigits[2] || 1) + (tempoDigits[3] || 0);
+    
+    if (ex.type === 'cluster' && ex.parts) {
+      // Cluster: each set = sum of part reps × time-per-rep + intra-cluster rests
+      for (const part of ex.parts) {
+        const partReps = part.reps || 1;
+        totalSeconds += sets * partReps * secondsPerRep;
+        if (part.rest > 0) {
+          totalSeconds += sets * part.rest; // intra-cluster rest per set
+        }
+      }
+      totalSeconds += (sets - 1) * rest; // inter-set rest between cluster rounds
+    } else if (ex.type === 'ladder' && ex.parts) {
+      // Ladder: each set = sum of rung reps × time-per-rep + intra-ladder rests
+      for (const part of ex.parts) {
+        const partReps = part.reps || 1;
+        totalSeconds += sets * partReps * secondsPerRep;
+        if (part.rest > 0) {
+          totalSeconds += sets * part.rest;
+        }
+      }
+      totalSeconds += (sets - 1) * rest;
+    } else if (ex.type === 'emom') {
+      // EMOM: total = sets × interval (e.g., 5 rounds × 60s = 300s)
+      const interval = ex.emomInterval || 60;
+      totalSeconds += sets * interval;
+    } else {
+      // Regular: sets × reps × time-per-rep + (sets-1) × rest
+      totalSeconds += sets * reps * secondsPerRep;
+      totalSeconds += (sets - 1) * rest;
+    }
+    
+    // Superset time optimization: if in superset, rest is shared
+    // (Already accounted for by shorter rest between superset exercises)
+  }
+  
+  // Add 5 min warmup + 5 min cooldown
+  totalSeconds += 600;
+  
+  return Math.round(totalSeconds / 60); // return minutes
+}
+
+// ── Maximum session duration ──────────────────────────────────────
+export const MAX_SESSION_MINUTES = 90;
+
+// ── Check if session fits within time cap ─────────────────────────
+export function isSessionDurationSafe(exercises) {
+  return estimateSessionDuration(exercises) <= MAX_SESSION_MINUTES;
+}
+
 // ── Bodyweight-adjusted volume scaling ─────────────────────────
 // Heavier athletes need slightly less volume (higher per-rep cost)
 export function bwVolumeScale(weight) {
