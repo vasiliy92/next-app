@@ -581,10 +581,10 @@ td.tempo {
   animation: fadeIn 0.4s ease-out forwards;
 }
 
-.fade-in-delay-1 { animation-delay: 0.05s; opacity: 0; }
-.fade-in-delay-2 { animation-delay: 0.10s; opacity: 0; }
-.fade-in-delay-3 { animation-delay: 0.15s; opacity: 0; }
-.fade-in-delay-4 { animation-delay: 0.20s; opacity: 0; }
+.fade-in-delay-1 { animation: fadeIn 0.4s ease-out 0.05s forwards; opacity: 0; }
+.fade-in-delay-2 { animation: fadeIn 0.4s ease-out 0.10s forwards; opacity: 0; }
+.fade-in-delay-3 { animation: fadeIn 0.4s ease-out 0.15s forwards; opacity: 0; }
+.fade-in-delay-4 { animation: fadeIn 0.4s ease-out 0.20s forwards; opacity: 0; }
 
 /* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 768px) {
