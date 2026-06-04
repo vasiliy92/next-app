@@ -119,3 +119,22 @@ Based on Elite/Pro standards (95th percentile):
 Age correction same as above.
 Goals beyond 90% of ceiling receive a warning.
 Goals beyond ceiling are capped at 95% of ceiling.
+
+## Ceiling Model: Why Goals Are Capped
+
+### What is the ceiling?
+The ceiling is the **95th percentile** of normative data (the "Elite" level). Based on Strength Level's 4.8M lift database, only ~5% of athletes at a given bodyweight achieve this result. Goals above the ceiling are capped at 95% of the ceiling value.
+
+### Why does the ceiling depend on bodyweight?
+Pull-ups and push-ups are bodyweight exercises. Heavier athletes move more mass per repetition. Vanderburgh (2006, 2007) demonstrated allometric scaling: 1RM ~ M^(2/3), meaning relative strength decreases with mass by a physical law, not by choice. Sanchez-Moreno et al. (2016) confirmed r = -0.55 correlation between body mass and pull-up performance.
+
+**Example**: A 60kg athlete does pull-ups with 0kg external load. A 100kg athlete does pull-ups with the equivalent of 40kg extra. This 40kg difference explains the lower ceiling.
+
+### Why is 100 push-ups at 100kg unrealistic?
+Strength Level data shows the elite (95th percentile) result for 100kg males is 59 push-ups. 100 push-ups would require a 170th percentile result — statistically non-existent in this weight class. Each push-up at 100kg moves ~70kg (64% of mass on arms in the top position). A 65kg athlete moves ~45kg. The 25kg-per-rep difference × 100 reps = 2,500kg of additional work.
+
+### Why cap at 95% of ceiling, not 100%?
+Schoenfeld et al. (2023) demonstrated that muscular adaptation follows a logarithmic curve with diminishing returns. Near the ceiling, progression rate drops sharply. There is no evidence base for training programming in the 95-100% zone — insufficient data exists on what methods work. 95% is a conservative boundary beyond which we cannot guarantee safety and efficacy.
+
+### Can I exceed the ceiling?
+Possibly, but that makes you a statistical outlier. The program cannot build plans based on anomalies. If you're already above the ceiling, use it as a reference point and adjust the program yourself.
