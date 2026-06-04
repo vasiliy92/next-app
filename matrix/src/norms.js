@@ -46,43 +46,48 @@ export const PULL_UP_BY_AGE = {
 };
 
 // ── Push-up reps by bodyweight (male, max to fatigue) ──────────
-// Derived from: Cooper 1-min norms × 1.3 (untimed conversion)
-// + bodyweight penalty from Vanderburgh (push-up ≈ 64% BW supported)
-// Penalty gradient: ~2% per 10kg above 70kg reference
+// Source: Strength Level (2,909,040 lifts), direct BW-based norms
 export const PUSH_UP_BY_BW = {
-  50: { beg: 8,  nov: 20, int: 40, adv: 55, eli: 85 },
-  55: { beg: 8,  nov: 19, int: 39, adv: 53, eli: 82 },
-  60: { beg: 7,  nov: 18, int: 37, adv: 51, eli: 79 },
-  65: { beg: 7,  nov: 17, int: 36, adv: 49, eli: 76 },
-  70: { beg: 7,  nov: 17, int: 35, adv: 48, eli: 74 },
-  75: { beg: 7,  nov: 16, int: 34, adv: 46, eli: 71 },
-  80: { beg: 6,  nov: 15, int: 33, adv: 45, eli: 69 },
-  85: { beg: 6,  nov: 15, int: 31, adv: 43, eli: 66 },
-  90: { beg: 6,  nov: 14, int: 30, adv: 41, eli: 64 },
-  95: { beg: 5,  nov: 14, int: 29, adv: 40, eli: 62 },
-  100: { beg: 5, nov: 13, int: 28, adv: 38, eli: 59 },
-  105: { beg: 5, nov: 12, int: 26, adv: 36, eli: 56 },
-  110: { beg: 5, nov: 12, int: 25, adv: 35, eli: 54 },
-  115: { beg: 4, nov: 11, int: 24, adv: 33, eli: 51 },
-  120: { beg: 4, nov: 10, int: 23, adv: 32, eli: 49 },
-  125: { beg: 4, nov: 10, int: 22, adv: 30, eli: 47 },
-  130: { beg: 4, nov: 9,  int: 21, adv: 29, eli: 45 },
-  135: { beg: 3, nov: 9,  int: 20, adv: 28, eli: 43 },
-  140: { beg: 3, nov: 8,  int: 19, adv: 27, eli: 42 },
+  50: { beg: 0,  nov: 16, int: 42, adv: 73, eli: 108 },
+  55: { beg: 0,  nov: 17, int: 42, adv: 72, eli: 105 },
+  60: { beg: 1,  nov: 18, int: 42, adv: 70, eli: 102 },
+  65: { beg: 2,  nov: 19, int: 42, adv: 69, eli: 99 },
+  70: { beg: 3,  nov: 19, int: 41, adv: 67, eli: 96 },
+  75: { beg: 4,  nov: 19, int: 41, adv: 66, eli: 93 },
+  80: { beg: 5,  nov: 20, int: 40, adv: 64, eli: 91 },
+  85: { beg: 5,  nov: 20, int: 39, adv: 63, eli: 88 },
+  90: { beg: 5,  nov: 19, int: 39, adv: 61, eli: 86 },
+  95: { beg: 6,  nov: 19, int: 38, adv: 60, eli: 83 },
+  100: { beg: 6, nov: 19, int: 37, adv: 58, eli: 81 },
+  105: { beg: 6, nov: 19, int: 37, adv: 57, eli: 79 },
+  110: { beg: 6, nov: 19, int: 36, adv: 56, eli: 77 },
+  115: { beg: 6, nov: 18, int: 35, adv: 54, eli: 75 },
+  120: { beg: 6, nov: 18, int: 34, adv: 53, eli: 73 },
+  125: { beg: 6, nov: 18, int: 34, adv: 52, eli: 71 },
+  130: { beg: 6, nov: 17, int: 33, adv: 51, eli: 70 },
+  135: { beg: 6, nov: 17, int: 32, adv: 49, eli: 68 },
+  140: { beg: 6, nov: 17, int: 32, adv: 48, eli: 66 },
 };
 
 // ── Push-up reps by age (male, max to fatigue) ─────────────────
-// Derived from: Cooper 1-min norms × 1.3
+// Source: Strength Level (2,909,040 lifts)
 export const PUSH_UP_BY_AGE = {
-  20: { beg: 8,  nov: 20, int: 40, adv: 55, eli: 80 },
-  25: { beg: 8,  nov: 20, int: 40, adv: 55, eli: 80 },
-  30: { beg: 7,  nov: 17, int: 35, adv: 48, eli: 70 },
-  35: { beg: 7,  nov: 17, int: 35, adv: 48, eli: 70 },
-  40: { beg: 5,  nov: 13, int: 27, adv: 38, eli: 55 },
-  45: { beg: 5,  nov: 13, int: 27, adv: 38, eli: 55 },
-  50: { beg: 3,  nov: 10, int: 20, adv: 30, eli: 45 },
-  55: { beg: 3,  nov: 10, int: 20, adv: 30, eli: 45 },
-  60: { beg: 2,  nov: 7,  int: 15, adv: 22, eli: 35 },
+  15: { beg: 0,  nov: 11, int: 30, adv: 54, eli: 80 },
+  20: { beg: 0,  nov: 16, int: 39, adv: 66, eli: 95 },
+  25: { beg: 1,  nov: 18, int: 41, adv: 68, eli: 99 },
+  30: { beg: 1,  nov: 18, int: 41, adv: 68, eli: 99 },
+  35: { beg: 1,  nov: 18, int: 41, adv: 68, eli: 99 },
+  40: { beg: 1,  nov: 18, int: 41, adv: 68, eli: 99 },
+  45: { beg: 0,  nov: 15, int: 37, adv: 63, eli: 92 },
+  50: { beg: 0,  nov: 12, int: 33, adv: 57, eli: 84 },
+  55: { beg: 0,  nov: 9,  int: 28, adv: 50, eli: 75 },
+  60: { beg: 0,  nov: 7,  int: 23, adv: 43, eli: 66 },
+  65: { beg: 0,  nov: 4,  int: 18, adv: 36, eli: 57 },
+  70: { beg: 0,  nov: 0,  int: 13, adv: 30, eli: 48 },
+  75: { beg: 0,  nov: 0,  int: 9,  adv: 24, eli: 40 },
+  80: { beg: 0,  nov: 0,  int: 6,  adv: 18, eli: 33 },
+  85: { beg: 0,  nov: 0,  int: 2,  adv: 13, eli: 27 },
+  90: { beg: 0,  nov: 0,  int: 0,  adv: 9,  eli: 21 },
 };
 
 // ── Age correction factors ─────────────────────────────────────
