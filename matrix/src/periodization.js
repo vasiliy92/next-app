@@ -7,6 +7,13 @@
  * - Each macrocycle has an emphasis (pull/push/balanced)
  * - Volume, intensity, exercise selection vary by phase
  * 
+ * Tempo notation: SECP — Seconds for (E)ccentric, (C)ontraction-pause, 
+ *   (P)ause-between-reps. X = explosive (1s). Examples:
+ *   20X1 = 2s down, 0s hold, eXplosive up, 1s top
+ *   2010 = 2s down, 0s hold, 1s up, 0s top (controlled)
+ *   30X1 = 3s down, 0s hold, eXplosive up, 1s top
+ *   10X1 = 1s down, 0s hold, eXplosive up, 1s top
+ * 
  * Based on: Bompa & Haff (Periodization), Yu et al. (2021 cluster sets),
  *           Schoenfeld (2021) loading recommendations
  */
@@ -189,7 +196,7 @@ function buildMondaySession(pullLevel, pushLevel, pullCeiling, pushCeiling, pull
     sets: 2,
     reps: 15,
     rest: 60,
-    tempo: '2020',
+    tempo: '2010',
   });
   
   return {
@@ -217,15 +224,17 @@ function buildWednesdaySession(pullLevel, pushLevel, pullCeiling, pushCeiling, p
   
   if (useClusters) {
     // Cluster superset: complete pull cluster THEN push cluster per round
+    // True cluster structure: (N + N) with 15s intra-cluster rest between parts
+    // Inter-set rest (180s) is on the exercise object, not embedded in parts
     exercises.push({
       ...EXERCISES.pull_up_cluster,
       sets: 4,
       type: 'cluster',
       parts: [
-        { reps: pullClusterReps, rest: 15 },
-        { reps: pullClusterReps, rest: 180 }, // inter-set rest after cluster
+        { reps: pullClusterReps, rest: 15 },  // mini-set 1, 15s rest before mini-set 2
+        { reps: pullClusterReps, rest: 0 },    // mini-set 2, no extra rest (inter-set follows)
       ],
-      rest: 180,
+      rest: 180,  // inter-set rest between full cluster rounds
       tempo: '10X1',
       isClusterSuperset: true,
       clusterSupersetGroup: 'П',
@@ -237,7 +246,7 @@ function buildWednesdaySession(pullLevel, pushLevel, pullCeiling, pushCeiling, p
       type: 'cluster',
       parts: [
         { reps: pushClusterReps, rest: 15 },
-        { reps: pushClusterReps, rest: 180 },
+        { reps: pushClusterReps, rest: 0 },
       ],
       rest: 180,
       tempo: '10X1',
@@ -273,7 +282,7 @@ function buildWednesdaySession(pullLevel, pushLevel, pullCeiling, pushCeiling, p
     sets: 2,
     reps: 12,
     rest: 60,
-    tempo: '2020',
+    tempo: '2010',
   });
   
   exercises.push({
@@ -281,7 +290,7 @@ function buildWednesdaySession(pullLevel, pushLevel, pullCeiling, pushCeiling, p
     sets: 2,
     reps: 12,
     rest: 60,
-    tempo: '2020',
+    tempo: '2010',
   });
   
   return {
@@ -397,7 +406,7 @@ function buildDeloadSession(day, pullLevel, pushLevel, weight) {
     sets: 2,
     reps: 15,
     rest: 60,
-    tempo: '2020',
+    tempo: '2010',
   });
   
   exercises.push({
@@ -405,7 +414,7 @@ function buildDeloadSession(day, pullLevel, pushLevel, weight) {
     sets: 2,
     reps: 12,
     rest: 60,
-    tempo: '2020',
+    tempo: '2010',
   });
   
   const labels = {
