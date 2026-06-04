@@ -92,7 +92,7 @@ function renderInputPage() {
         </div>
         <div class="form-group">
           <label class="form-label">Цель: отжимания</label>
-          <input type="number" class="form-input" id="goalPush" placeholder="59" min="0" max="200" value="59">
+          <input type="number" class="form-input" id="goalPush" placeholder="81" min="0" max="200" value="81">
         </div>
       </div>
 
@@ -245,8 +245,8 @@ function renderSciencePage() {
         <p style="margin-bottom: var(--space-3);">Пример: атлет 60 кг делает подтягивания с нагрузкой 0 кг. Атлет 100 кг делает подтягивания с нагрузкой 40 кг. Это эквивалентно разнице в 40 кг на штанге &mdash; естественно, что потолок повторений ниже.</p>
 
         <div class="section-title" style="font-size: var(--text-sm); margin-top: var(--space-4);">Почему 100 отжиманий при 100 кг нереалистичны?</div>
-        <p style="margin-bottom: var(--space-3);">По данным Strength Level, элитный результат для 100 кг &mdash; 59 отжиманий. Это 95-й перцентиль: лишь 5 из 100 спортсменов этого веса достигают такого уровня. 100 отжиманий потребовало бы результата в 170-й перцентиль &mdash; статистически не существующего в популяции этого веса.</p>
-        <p style="margin-bottom: var(--space-3);">Причина &mdash; не &laquo;слабость&raquo;, а <strong>биомеханика</strong>: каждое отжимание при 100 кг &mdash; это перемещение ~70 кг (64% массы приходится на руки в верхней точке). Для сравнения, атлет 65 кг перемещает ~45 кг. Разница &mdash; 25 кг на каждом повторении, умноженная на 100 повторений = 2500 кг дополнительной работы.</p>
+        <p style="margin-bottom: var(--space-3);">По данным Strength Level (2.9M lifts), элитный результат для 100 кг &mdash; 81 отжимание. Это 95-й перцентиль: лишь 5 из 100 спортсменов этого веса достигают такого уровня. 100 отжиманий потребовало бы результата в 123-й перцентиль &mdash; статистически не существующего в популяции этого веса.</p>
+        <p style="margin-bottom: var(--space-3);">Причина &mdash; не &laquo;слабость&raquo;, а <strong>биомеханика</strong>: каждое отжимание при 100 кг &mdash; это перемещение ~70 кг (64% массы приходится на руки в верхней точке). Для сравнения, атлет 65 кг перемещает ~45 кг. Разница &mdash; 25 кг на каждом повторении, умноженная на 100 повторений = 2500 кг дополнительной работы. 100 отжиманий реально при весе ~60-65 кг (элитный уровень: 95-102).</p>
 
         <div class="section-title" style="font-size: var(--text-sm); margin-top: var(--space-4);">Почему цель ограничена 95%, а не 100% потолка?</div>
         <p style="margin-bottom: var(--space-3);"><strong>Schoenfeld et al. (2023)</strong> показали, что мышечная адаптация имеет логарифмическую кривую с убывающей отдачей. Ближе к потолку скорость прогресса резко падает. Программирование тренировок для зоны 95-100% не имеет научной основы &mdash; нет достаточного количества данных о том, какие методы работают в этой зоне. 95% &mdash; это консервативная граница, за которой мы не можем гарантировать безопасность и эффективность.</p>
@@ -254,6 +254,28 @@ function renderSciencePage() {
         <div class="section-title" style="font-size: var(--text-sm); margin-top: var(--space-4);">Могу ли я превысить потолок?</div>
         <p style="margin-bottom: var(--space-3);">Возможно, но это исключение, а не правило. Если вы уже находитесь выше потолка &mdash; вы статистический аутлайнер. Программа не может строить план на основе аномалий. В этом случае используйте потолок как ориентир и корректируйте программу самостоятельно.</p>
       </div>
+
+      <div class="section-title">Нормативные данные: отжимания</div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Вес (кг)</th>
+              <th>Нов.</th>
+              <th>Сред.</th>
+              <th>Прод.</th>
+              <th>Элит.</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${[70, 80, 90, 100, 110, 120].map(bw => {
+              const n = getPushUpNorms(bw, 30);
+              return '<tr><td class="num">' + bw + '</td><td class="num">' + n.nov + '</td><td class="num">' + n.int + '</td><td class="num">' + n.adv + '</td><td class="num">' + n.eli + '</td></tr>';
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="section-description" style="margin-bottom: var(--space-6);">Муж., 30 лет. Источник: Strength Level (2.9M lifts)</div>
 
       <div class="section-title">Ключевые исследования</div>
       <div style="font-size: var(--text-sm); line-height: var(--lh-relaxed); color: var(--fg-secondary);">
@@ -264,7 +286,7 @@ function renderSciencePage() {
           <li style="margin-bottom: var(--space-2);"><strong>Schoenfeld et al. (2023)</strong> &mdash; Finite muscular adaptation, logarithmic curve</li>
           <li style="margin-bottom: var(--space-2);"><strong>Rhea et al.; Barsuhn et al. (2024)</strong> &mdash; ~1/3 of peak volume maintains developed qualities</li>
           <li style="margin-bottom: var(--space-2);"><strong>Kjaer et al. (2016)</strong> &mdash; Inverse age association with MSMF scores (Beta = &minus;0.15 to &minus;0.91/year)</li>
-          <li><strong>Cooper Institute (2013)</strong> &mdash; Push-up norms by age</li>
+          <li><strong>Strength Level</strong> &mdash; Normative push-up and pull-up data by bodyweight and age (4.8M + 2.9M lifts)</li>
         </ul>
       </div>
     </div>
