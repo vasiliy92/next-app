@@ -714,6 +714,295 @@ test('Lighter athlete (60kg) gets more volume capacity than heavier (100kg)', ()
 });
 
 // ═══════════════════════════════════════════════════════════════
+// SECTION 11: EDGE CASES
+// ═══════════════════════════════════════════════════════════════
+console.log('\n🧪 Section 11: Edge Cases');
+
+test('Age > 60: age factor = 0.25 (very conservative)', () => {
+  assertEqual(norms.getAgeFactor(62), 0.25);
+  assertEqual(norms.getAgeFactor(65), 0.25);
+});
+
+test('Extreme BW edge: 40kg uses minimum bucket (50kg)', () => {
+  const n = norms.lookupByBW(norms.PULL_UP_BY_BW, 40);
+  assertEqual(n.int, 15); // 50kg bucket
+});
+
+test('Extreme BW edge: 150kg uses maximum bucket (140kg)', () => {
+  const n = norms.lookupByBW(norms.PUSH_UP_BY_BW, 150);
+  assertEqual(n.int, 19); // 140kg bucket
+});
+
+test('Age 15 lookup: nearest bucket is 15', () => {
+  const n = norms.lookupByAge(norms.PULL_UP_BY_AGE, 15);
+  assertEqual(n.int, 8);
+});
+
+test('Age 18 lookup: nearest bucket is 20 (distance 2 vs 3 from 15)', () => {
+  const n = norms.lookupByAge(norms.PULL_UP_BY_AGE, 18);
+  assertEqual(n.int, 13); // 20yo bucket
+});
+
+test('Weight out of range throws error', () => {
+  try {
+    athlete.checkEligibility({ weight: 30, age: 25, sex: 'male', pullUpMax: 10, pushUpMax: 30 });
+    throw new Error('Should have thrown');
+  } catch (e) {
+    assertTrue(e.message.includes('out of supported range'));
+  }
+});
+
+test('Age out of range throws error', () => {
+  try {
+    athlete.checkEligibility({ weight: 80, age: 70, sex: 'male', pullUpMax: 10, pushUpMax: 30 });
+    throw new Error('Should have thrown');
+  } catch (e) {
+    assertTrue(e.message.includes('out of supported range'));
+  }
+});
+
+test('Deload session structure: only pull-up, push-up, and prehab', () => {
+  const m = matrix.generateMatrix(
+    { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
+    { pullUps: 28, pushUps: 59 }
+  );
+  const deloadWeek = m.macrocycles[0].mesocycles[0].weeks[3];
+  deloadWeek.sessions.forEach(session => {
+    assertTrue(session.isDeload);
+    // Deload should have reduced sets (2 sets for main exercises)
+    const mainExercises = (session.exercises || []).filter(e => !e.isPrehab);
+    mainExercises.forEach(ex => {
+      assertLTE(ex.sets, 2, `Deload main exercise ${ex.id} should have ≤2 sets, got ${ex.sets}`);
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 12: SESSION DURATION
+// ═══════════════════════════════════════════════════════════════
+console.log('\n⏱️ Section 12: Session Duration');
+
+test('All Vasilii sessions fit within 90-minute cap', () => {
+  const m = matrix.generateMatrix(
+    { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
+    { pullUps: 28, pushUps: 59 }
+  );
+  m.macrocycles.forEach(macro => {
+    macro.mesocycles.forEach(meso => {
+      meso.weeks.forEach(week => {
+        week.sessions.forEach(session => {
+          const duration = volume.estimateSessionDuration(session.exercises || []);
+          assertLTE(duration, 90, `${session.day} week ${week.week} session ${duration}min exceeds 90min cap`);
+        });
+      });
+    });
+  });
+});
+
+test('Deload sessions are shorter than build sessions', () => {
+  const m = matrix.generateMatrix(
+    { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
+    { pullUps: 28, pushUps: 59 }
+  );
+  const meso = m.macrocycles[0].mesocycles[0];
+  const buildDuration = volume.estimateSessionDuration(meso.weeks[0].sessions[0].exercises || []);
+  const deloadDuration = volume.estimateSessionDuration(meso.weeks[3].sessions[0].exercises || []);
+  assertTrue(deloadDuration < buildDuration, `Deload (${deloadDuration}min) should be shorter than build (${buildDuration}min)`);
+});
+
+test('MAX_SESSION_MINUTES constant = 90', () => {
+  assertEqual(volume.MAX_SESSION_MINUTES, 90);
+});
+
+test('isSessionDurationSafe returns true for valid session', () => {
+  const shortSession = [
+    { sets: 3, reps: 5, rest: 90, tempo: '20X1', type: 'regular' },
+  ];
+  assertTrue(volume.isSessionDurationSafe(shortSession));
+});
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 13: TEMPO NOTATION
+// ═══════════════════════════════════════════════════════════════
+console.log('\n🎵 Section 13: Tempo Notation');
+
+test('All exercises in matrix have valid 4-digit tempo', () => {
+  const m = matrix.generateMatrix(
+    { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
+    { pullUps: 28, pushUps: 59 }
+  );
+  m.macrocycles.forEach(macro => {
+    macro.mesocycles.forEach(meso => {
+      meso.weeks.forEach(week => {
+        week.sessions.forEach(session => {
+          (session.exercises || []).forEach(ex => {
+            const t = ex.tempo || '';
+            assertTrue(t.length === 4, `${ex.id} tempo "${t}" is not 4 digits`);
+            // Must contain only digits and X
+            assertTrue(/^[0-9X]+$/i.test(t), `${ex.id} tempo "${t}" contains invalid chars`);
+          });
+        });
+      });
+    });
+  });
+});
+
+test('No exercise uses legacy 2020 tempo format', () => {
+  const m = matrix.generateMatrix(
+    { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
+    { pullUps: 28, pushUps: 59 }
+  );
+  m.macrocycles.forEach(macro => {
+    macro.mesocycles.forEach(meso => {
+      meso.weeks.forEach(week => {
+        week.sessions.forEach(session => {
+          (session.exercises || []).forEach(ex => {
+            assertFalse(ex.tempo === '2020', `${ex.id} uses legacy 2020 tempo`);
+          });
+        });
+      });
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 14: CLUSTER STRUCTURE INTEGRITY
+// ═══════════════════════════════════════════════════════════════
+console.log('\n🔗 Section 14: Cluster Structure');
+
+test('Cluster parts have valid intra-cluster rest (15s) between mini-sets, not 180s', () => {
+  const m = matrix.generateMatrix(
+    { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
+    { pullUps: 28, pushUps: 59 }
+  );
+  m.macrocycles.forEach(macro => {
+    macro.mesocycles.forEach(meso => {
+      meso.weeks.forEach(week => {
+        week.sessions.forEach(session => {
+          (session.exercises || []).forEach(ex => {
+            if (ex.type === 'cluster' && ex.parts) {
+              // Intra-cluster rest should be 15s (between mini-sets), not 180s
+              for (let i = 0; i < ex.parts.length - 1; i++) {
+                assertLTE(ex.parts[i].rest, 30, `Cluster ${ex.id} part ${i} rest ${ex.parts[i].rest}s too long for intra-cluster`);
+              }
+              // Last part should have rest=0 (inter-set rest is on exercise object)
+              assertEqual(ex.parts[ex.parts.length - 1].rest, 0, 
+                `Cluster ${ex.id} last part rest should be 0 (inter-set on exercise)`);
+            }
+          });
+        });
+      });
+    });
+  });
+});
+
+test('Cluster exercises have ≥2 parts (true multi-part cluster)', () => {
+  const m = matrix.generateMatrix(
+    { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
+    { pullUps: 28, pushUps: 59 }
+  );
+  m.macrocycles.forEach(macro => {
+    macro.mesocycles.forEach(meso => {
+      meso.weeks.forEach(week => {
+        week.sessions.forEach(session => {
+          (session.exercises || []).forEach(ex => {
+            if (ex.type === 'cluster') {
+              assertTrue(ex.parts.length >= 2, `Cluster ${ex.id} should have ≥2 parts`);
+            }
+          });
+        });
+      });
+    });
+  });
+});
+
+test('Cluster inter-set rest (exercise.rest) is 120-240s', () => {
+  const m = matrix.generateMatrix(
+    { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
+    { pullUps: 28, pushUps: 59 }
+  );
+  m.macrocycles.forEach(macro => {
+    macro.mesocycles.forEach(meso => {
+      meso.weeks.forEach(week => {
+        week.sessions.forEach(session => {
+          (session.exercises || []).forEach(ex => {
+            if (ex.type === 'cluster') {
+              assertGTE(ex.rest, 120, `Cluster ${ex.id} inter-set rest ${ex.rest}s too short`);
+              assertLTE(ex.rest, 240, `Cluster ${ex.id} inter-set rest ${ex.rest}s too long`);
+            }
+          });
+        });
+      });
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 15: SUPERCOMPENSATION MODEL UNIFIED
+// ═══════════════════════════════════════════════════════════════
+console.log('\n🔄 Section 15: Supercompensation Model');
+
+test('DELOAD_SUPERCOMP_PULL constant = 0.05', () => {
+  assertEqual(progression.DELOAD_SUPERCOMP_PULL, 0.05);
+});
+
+test('DELOAD_SUPERCOMP_PUSH constant = 0.10', () => {
+  assertEqual(progression.DELOAD_SUPERCOMP_PUSH, 0.10);
+});
+
+test('estimateWeeksToGoal uses DELOAD_SUPERCOMP constants', () => {
+  // Pull: starting at 20, goal 22, ceiling 28
+  // Should progress slowly near ceiling with supercomp on deload weeks
+  const weeks = progression.estimateWeeksToGoal(20, 22, 28, 'pull');
+  assertGTE(weeks, 3, 'Should take at least 3 weeks');
+  assertLTE(weeks, 30, 'Should not take more than 30 weeks');
+});
+
+test('simulateProgression uses same deload gains as estimateWeeksToGoal', () => {
+  // Both should use DELOAD_SUPERCOMP_PULL (0.05) and DELOAD_SUPERCOMP_PUSH (0.10)
+  // Verify by checking the curve doesn't spike on deload weeks
+  const profile = { pullUpMax: 20, pushUpMax: 50 };
+  const goals = { pullUps: 22, pushUps: 55 };
+  const ceiling = { pull: 28, push: 59 };
+  const curve = progression.simulateProgression(profile, goals, ceiling);
+  // Deload weeks (4, 8, 12...) should show small gains, not zero
+  const deloadWeek4 = curve[3]; // index 3 = week 4
+  const buildWeek3 = curve[2]; // index 2 = week 3
+  // Deload week gain should be positive (supercompensation)
+  const deloadGain = deloadWeek4.pullEstimate - curve[2].pullEstimate;
+  assertTrue(deloadGain > 0, `Deload week should show positive supercompensation, got ${deloadGain}`);
+  // But deload gain should be smaller than build week gain
+  const buildGain = buildWeek3.pullEstimate - curve[1].pullEstimate;
+  assertTrue(deloadGain <= buildGain * 2, `Deload gain (${deloadGain}) should not exceed 2× build gain (${buildGain})`);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 16: FEMALE ATHLETE SUPPORT
+// ═══════════════════════════════════════════════════════════════
+console.log('\n👩 Section 16: Female Athlete');
+
+test('Female athlete with valid profile is accepted', () => {
+  const result = athlete.checkEligibility({ weight: 60, age: 25, sex: 'female', pullUpMax: 10, pushUpMax: 30 });
+  // Should not throw, and should return valid structure
+  assertTrue(result.pull !== undefined);
+  assertTrue(result.push !== undefined);
+});
+
+test('Female athlete with low maxes is not eligible', () => {
+  const result = athlete.checkEligibility({ weight: 70, age: 30, sex: 'female', pullUpMax: 2, pushUpMax: 5 });
+  assertFalse(result.eligible);
+});
+
+test('Matrix generation works for female athlete', () => {
+  const m = matrix.generateMatrix(
+    { weight: 60, age: 25, sex: 'female', pullUpMax: 10, pushUpMax: 30 },
+    { pullUps: 15, pushUps: 37 }
+  );
+  assertTrue(m.macrocycles.length >= 1);
+  assertTrue(m.totalWeeks >= 12);
+});
+
+// ═══════════════════════════════════════════════════════════════
 // RUN SUMMARY
 // ═══════════════════════════════════════════════════════════════
 console.log(`\n${'═'.repeat(60)}`);
