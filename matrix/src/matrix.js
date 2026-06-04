@@ -23,8 +23,8 @@ export function generateMatrix(profile, goals) {
   const goalValidation = validateGoals(profile, goals);
   
   // Step 3: Calculate ceilings
-  const pullNorms = getPullUpNorms(profile.weight, profile.age);
-  const pushNorms = getPushUpNorms(profile.weight, profile.age);
+  const pullNorms = getPullUpNorms(profile.weight, profile.age, profile.sex);
+  const pushNorms = getPushUpNorms(profile.weight, profile.age, profile.sex);
   const ageFactor = getAgeFactor(profile.age);
   const pullCeiling = Math.round(pullNorms.eli * ageFactor);
   const pushCeiling = Math.round(pushNorms.eli * ageFactor);
