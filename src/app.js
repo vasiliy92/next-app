@@ -233,14 +233,37 @@ function renderSciencePage() {
       </div>
       <div class="section-description" style="margin-bottom: var(--space-6);">Источник: Kjaer et al. (2016)</div>
 
+      <div class="section-title">Почему программа ограничивает цели?</div>
+      <div style="font-size: var(--text-sm); line-height: var(--lh-relaxed); color: var(--fg-secondary); margin-bottom: var(--space-6);">
+        <p style="margin-bottom: var(--space-3);">Программа ограничивает целевые показатели до <strong>95% от физиологического потолка</strong> для вашего веса и возраста. Это не означает, что результат &laquo;невозможен&raquo; &mdash; но вероятность его достижения крайне мала, а стоимость попытки высока.</p>
+
+        <div class="section-title" style="font-size: var(--text-sm); margin-top: var(--space-4);">Что такое потолок?</div>
+        <p style="margin-bottom: var(--space-3);">Потолок &mdash; это <strong>95-й перцентиль</strong> нормативных данных (уровень &laquo;Elite&raquo;). Он основан на базе Strength Level (4.8 млн результатов) и означает: лишь 5% спортсменов данного веса достигают этого результата. Цель выше потолка означает, что вы хотите войти в топ 1-2% &mdash; для этого нет доказательной базы тренировочного программирования.</p>
+
+        <div class="section-title" style="font-size: var(--text-sm); margin-top: var(--space-4);">Почему потолок зависит от веса?</div>
+        <p style="margin-bottom: var(--space-3);">Подтягивания и отжимания &mdash; упражнения с собственным весом. Чем больше масса, тем больше работы совершает мышца на каждом повторении. <strong>Vanderburgh (2006, 2007)</strong> показал аллометрическое масштабирование: 1RM ~ M<sup>2/3</sup>. Это означает, что относительная сила падает с ростом массы по закону, а не по выбору. <strong>Sanchez-Moreno et al. (2016)</strong> подтвердили корреляцию r = &minus;0.55 между массой тела и результатом в подтягиваниях.</p>
+        <p style="margin-bottom: var(--space-3);">Пример: атлет 60 кг делает подтягивания с нагрузкой 0 кг. Атлет 100 кг делает подтягивания с нагрузкой 40 кг. Это эквивалентно разнице в 40 кг на штанге &mdash; естественно, что потолок повторений ниже.</p>
+
+        <div class="section-title" style="font-size: var(--text-sm); margin-top: var(--space-4);">Почему 100 отжиманий при 100 кг нереалистичны?</div>
+        <p style="margin-bottom: var(--space-3);">По данным Strength Level, элитный результат для 100 кг &mdash; 59 отжиманий. Это 95-й перцентиль: лишь 5 из 100 спортсменов этого веса достигают такого уровня. 100 отжиманий потребовало бы результата в 170-й перцентиль &mdash; статистически не существующего в популяции этого веса.</p>
+        <p style="margin-bottom: var(--space-3);">Причина &mdash; не &laquo;слабость&raquo;, а <strong>биомеханика</strong>: каждое отжимание при 100 кг &mdash; это перемещение ~70 кг (64% массы приходится на руки в верхней точке). Для сравнения, атлет 65 кг перемещает ~45 кг. Разница &mdash; 25 кг на каждом повторении, умноженная на 100 повторений = 2500 кг дополнительной работы.</p>
+
+        <div class="section-title" style="font-size: var(--text-sm); margin-top: var(--space-4);">Почему цель ограничена 95%, а не 100% потолка?</div>
+        <p style="margin-bottom: var(--space-3);"><strong>Schoenfeld et al. (2023)</strong> показали, что мышечная адаптация имеет логарифмическую кривую с убывающей отдачей. Ближе к потолку скорость прогресса резко падает. Программирование тренировок для зоны 95-100% не имеет научной основы &mdash; нет достаточного количества данных о том, какие методы работают в этой зоне. 95% &mdash; это консервативная граница, за которой мы не можем гарантировать безопасность и эффективность.</p>
+
+        <div class="section-title" style="font-size: var(--text-sm); margin-top: var(--space-4);">Могу ли я превысить потолок?</div>
+        <p style="margin-bottom: var(--space-3);">Возможно, но это исключение, а не правило. Если вы уже находитесь выше потолка &mdash; вы статистический аутлайнер. Программа не может строить план на основе аномалий. В этом случае используйте потолок как ориентир и корректируйте программу самостоятельно.</p>
+      </div>
+
       <div class="section-title">Ключевые исследования</div>
       <div style="font-size: var(--text-sm); line-height: var(--lh-relaxed); color: var(--fg-secondary);">
         <ul style="padding-left: var(--space-5); margin-bottom: var(--space-4);">
-          <li style="margin-bottom: var(--space-2);"><strong>Vanderburgh (2006, 2007)</strong> &mdash; Allometric scaling: 1RM ~ M^(2/3). BW penalty 15-20% for 60kg vs 90kg</li>
-          <li style="margin-bottom: var(--space-2);"><strong>Sanchez-Moreno et al. (2016)</strong> &mdash; Pull-ups: r = -0.55 with body mass</li>
-          <li style="margin-bottom: var(--space-2);"><strong>Yu et al. (2021)</strong> &mdash; Cluster sets better weeks 1-8 (SMD=0.24), traditional better after 8 weeks (SMD=-1.54)</li>
+          <li style="margin-bottom: var(--space-2);"><strong>Vanderburgh (2006, 2007)</strong> &mdash; Allometric scaling: 1RM ~ M<sup>2/3</sup>. BW penalty 15-20% for 60kg vs 90kg</li>
+          <li style="margin-bottom: var(--space-2);"><strong>Sanchez-Moreno et al. (2016)</strong> &mdash; Pull-ups: r = &minus;0.55 with body mass</li>
+          <li style="margin-bottom: var(--space-2);"><strong>Yu et al. (2021)</strong> &mdash; Cluster sets better weeks 1-8 (SMD=0.24), traditional better after 8 weeks (SMD=&minus;1.54)</li>
           <li style="margin-bottom: var(--space-2);"><strong>Schoenfeld et al. (2023)</strong> &mdash; Finite muscular adaptation, logarithmic curve</li>
           <li style="margin-bottom: var(--space-2);"><strong>Rhea et al.; Barsuhn et al. (2024)</strong> &mdash; ~1/3 of peak volume maintains developed qualities</li>
+          <li style="margin-bottom: var(--space-2);"><strong>Kjaer et al. (2016)</strong> &mdash; Inverse age association with MSMF scores (Beta = &minus;0.15 to &minus;0.91/year)</li>
           <li><strong>Cooper Institute (2013)</strong> &mdash; Push-up norms by age</li>
         </ul>
       </div>
