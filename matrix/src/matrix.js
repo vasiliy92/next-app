@@ -10,8 +10,8 @@
 
 import { checkEligibility, validateGoals } from './athlete.js';
 import { getPullUpNorms, getPushUpNorms, getAgeFactor } from './norms.js';
-import { estimateMacrocycleCount, assignEmphasis, estimateWeeksToGoal, simulateProgression } from './progression.js';
-import { calcWeeklyVolume, isVolumeJumpSafe, bwVolumeScale, getMRV } from './volume.js';
+import { estimateMacrocycleCount, assignEmphasis, estimateWeeksToGoal, simulateProgression, DELOAD_SUPERCOMP_PULL, DELOAD_SUPERCOMP_PUSH } from './progression.js';
+import { calcWeeklyVolume, isVolumeJumpSafe, isSessionDurationSafe, estimateSessionDuration, MAX_SESSION_MINUTES, bwVolumeScale, getMRV } from './volume.js';
 import { buildMacrocycle } from './periodization.js';
 
 // ── Generate complete training matrix ──────────────────────────
@@ -136,6 +136,22 @@ function validateMatrix(macrocycles, profile) {
               prevVolume: prevPullVol,
               newVolume: weekVol.pull,
               message: `Pull volume jump ${(weekVol.pull / prevPullVol - 1) * 100}% on week ${week.week}`,
+            });
+          }
+        }
+        
+        // Check session duration (max 90 min per spec)
+        for (const session of week.sessions) {
+          const duration = estimateSessionDuration(session.exercises || []);
+          if (duration > MAX_SESSION_MINUTES) {
+            issues.push({
+              type: 'SESSION_TOO_LONG',
+              severity: 'high',
+              week: week.week,
+              day: session.day,
+              duration,
+              limit: MAX_SESSION_MINUTES,
+              message: `${session.day.toUpperCase()} session ${duration}min exceeds ${MAX_SESSION_MINUTES}min cap on week ${week.week}`,
             });
           }
         }
