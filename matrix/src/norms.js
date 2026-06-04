@@ -146,24 +146,33 @@ export function lookupByAge(table, age) {
   return table[nearest];
 }
 
-// ── Combined norms: min(BW_norm, Age_norm) ─────────────────────
+// ── Female scaling factors ───────────────────────────────────
+// Women have ~55% of male upper-body relative strength
+// Source: Strength Level female norms (pull-up 60kg: eli≈20 vs male 37;
+// push-up 60kg: eli≈55 vs male 102 → ratio ~0.53-0.55)
+// Applied as multiplier on male norms to derive female equivalents
+const FEMALE_SCALE = { pull: 0.55, push: 0.55 };
+
+// ── Combined norms: min(BW_norm, Age_norm) × sex scale ──────
 // The more restrictive norm governs (athlete must meet both)
-export function getPullUpNorms(bw, age) {
+export function getPullUpNorms(bw, age, sex = 'male') {
   const bwNorm = lookupByBW(PULL_UP_BY_BW, bw);
   const ageNorm = lookupByAge(PULL_UP_BY_AGE, age);
+  const scale = sex === 'female' ? FEMALE_SCALE.pull : 1;
   const combined = {};
   for (const k of Object.keys(bwNorm)) {
-    combined[k] = Math.min(bwNorm[k], ageNorm[k]);
+    combined[k] = Math.max(0, Math.round(Math.min(bwNorm[k], ageNorm[k]) * scale));
   }
   return combined;
 }
 
-export function getPushUpNorms(bw, age) {
+export function getPushUpNorms(bw, age, sex = 'male') {
   const bwNorm = lookupByBW(PUSH_UP_BY_BW, bw);
   const ageNorm = lookupByAge(PUSH_UP_BY_AGE, age);
+  const scale = sex === 'female' ? FEMALE_SCALE.push : 1;
   const combined = {};
   for (const k of Object.keys(bwNorm)) {
-    combined[k] = Math.min(bwNorm[k], ageNorm[k]);
+    combined[k] = Math.max(0, Math.round(Math.min(bwNorm[k], ageNorm[k]) * scale));
   }
   return combined;
 }
