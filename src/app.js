@@ -75,6 +75,7 @@ function renderInputPage() {
           <label class="form-label">Пол</label>
           <select class="form-input" id="sex">
             <option value="male">Мужской</option>
+            <option value="female">Женский</option>
           </select>
         </div>
         <div class="form-group">
