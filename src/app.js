@@ -1,6 +1,6 @@
 /**
- * app.js — Training Matrix Application
- * Notion-style minimalist light UI
+ * app.js — Training Matrix: Gym-First Mobile Workout App
+ * Redesigned for use DURING training: one session, big numbers, rest timer
  */
 
 import './styles.css';
@@ -11,536 +11,200 @@ import { simulateProgression, estimateWeeksToGoal } from '../matrix/src/progress
 import { calcWeeklyVolume, getMRV, bwVolumeScale } from '../matrix/src/volume.js';
 
 // ── State ───────────────────────────────────────────────────
-let currentView = 'input';
+let currentView = 'profile';
 let matrixResult = null;
+let selectedMacroIdx = 0;
+let selectedMesoIdx = 0;
+let selectedWeekIdx = 0;
+let selectedDayIdx = 0; // 0=mon, 1=wed, 2=fri
+let completedSets = {}; // key: "m0mes0w0d0ex3" → number of completed sets
+let restTimer = { active: false, remaining: 0, interval: null, target: 0 };
+
+// ── Persist completed sets ──────────────────────────────────
+function saveProgress() {
+  try { localStorage.setItem('tm_progress', JSON.stringify(completedSets)); } catch(e) {}
+}
+function loadProgress() {
+  try { const d = localStorage.getItem('tm_progress'); if (d) completedSets = JSON.parse(d); } catch(e) {}
+}
+loadProgress();
+
+// ── Day map ─────────────────────────────────────────────────
+const DAY_KEYS = ['mon', 'wed', 'fri'];
+const DAY_LABELS = { mon: 'Понедельник', wed: 'Среда', fri: 'Пятница' };
+const DAY_SHORT = { mon: 'Пн', wed: 'Ср', fri: 'Пт' };
+const LEVEL_LABELS = { beginner: 'Начинающий', novice: 'Новичок', intermediate: 'Средний', advanced: 'Продвинутый', elite: 'Элитный' };
+
+// ── Get current session ─────────────────────────────────────
+function getCurrentSession() {
+  if (!matrixResult) return null;
+  const macro = matrixResult.macrocycles[selectedMacroIdx];
+  if (!macro) return null;
+  const meso = macro.mesocycles[selectedMesoIdx];
+  if (!meso) return null;
+  const week = meso.weeks[selectedWeekIdx];
+  if (!week) return null;
+  const session = week.sessions[selectedDayIdx];
+  return session || null;
+}
+
+function getSessionKey(exIdx) {
+  return `m${selectedMacroIdx}mes${selectedMesoIdx}w${selectedWeekIdx}d${selectedDayIdx}ex${exIdx}`;
+}
 
 // ── Render ──────────────────────────────────────────────────
 function render() {
   const app = document.getElementById('app');
   app.innerHTML = `
-    <div class="app-container">
-      ${renderSidebar()}
-      <div class="main-content">
-        ${currentView === 'input' ? renderInputPage() : ''}
-        ${currentView === 'program' ? renderProgramPage() : ''}
-        ${currentView === 'science' ? renderSciencePage() : ''}
+    <div class="app">
+      <div class="app-content">
+        ${currentView === 'today' ? renderTodayView() : ''}
+        ${currentView === 'plan' ? renderPlanView() : ''}
+        ${currentView === 'profile' ? renderProfileView() : ''}
+        ${currentView === 'science' ? renderScienceView() : ''}
       </div>
+      ${renderTabBar()}
     </div>
   `;
   bindEvents();
+  restoreTimer();
 }
 
-// ── Sidebar ─────────────────────────────────────────────────
-function renderSidebar() {
-  const navItems = [
-    { id: 'input', icon: '&#128221;', label: 'Профиль' },
-    { id: 'program', icon: '&#127947;', label: 'Программа' },
-    { id: 'science', icon: '&#128300;', label: 'Наука' },
+// ── Tab Bar ─────────────────────────────────────────────────
+function renderTabBar() {
+  const tabs = [
+    { id: 'today', icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`, label: 'Тренировка' },
+    { id: 'plan', icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`, label: 'План' },
+    { id: 'profile', icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`, label: 'Профиль' },
+    { id: 'science', icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`, label: 'Наука' },
   ];
 
   return `
-    <nav class="sidebar">
-      <div class="sidebar-title">Training Matrix</div>
-      <ul class="sidebar-nav">
-        ${navItems.map(item => `
-          <li>
-            <a href="#" data-nav="${item.id}" class="${currentView === item.id ? 'active' : ''}">
-              <span class="nav-icon">${item.icon}</span>
-              ${item.label}
-            </a>
-          </li>
-        `).join('')}
-      </ul>
+    <nav class="tab-bar">
+      ${tabs.map(t => `
+        <button class="tab-item ${currentView === t.id ? 'active' : ''}" data-tab="${t.id}">
+          ${t.icon}
+          <span class="tab-label">${t.label}</span>
+        </button>
+      `).join('')}
     </nav>
   `;
 }
 
-// ── Input Page ──────────────────────────────────────────────
-function renderInputPage() {
-  return `
-    <div class="page fade-in">
-      <h1 class="page-title">Профиль атлета</h1>
-      <p class="page-subtitle">Введите параметры для генерации адаптивной программы тренировок</p>
-
-      <div class="form-grid" id="athlete-form">
-        <div class="form-group">
-          <label class="form-label">Вес (кг)</label>
-          <input type="number" class="form-input" id="weight" placeholder="100" min="40" max="150" value="100">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Возраст</label>
-          <input type="number" class="form-input" id="age" placeholder="30" min="15" max="65" value="30">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Пол</label>
-          <select class="form-input" id="sex">
-            <option value="male">Мужской</option>
-            <option value="female">Женский</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Макс. подтягивания</label>
-          <input type="number" class="form-input" id="pullUpMax" placeholder="20" min="0" max="60" value="20">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Макс. отжимания</label>
-          <input type="number" class="form-input" id="pushUpMax" placeholder="50" min="0" max="200" value="50">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Цель: подтягивания</label>
-          <input type="number" class="form-input" id="goalPull" placeholder="28" min="0" max="60" value="28">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Цель: отжимания</label>
-          <input type="number" class="form-input" id="goalPush" placeholder="81" min="0" max="200" value="81">
-        </div>
-      </div>
-
-      <div style="margin-top: var(--space-6);">
-        <button class="btn btn-primary" id="generate-btn">Сгенерировать программу</button>
-      </div>
-
-      <div id="eligibility-result" style="margin-top: var(--space-6);"></div>
-    </div>
-  `;
-}
-
-// ── Program Page ────────────────────────────────────────────
-function renderProgramPage() {
+// ── Today View ──────────────────────────────────────────────
+function renderTodayView() {
   if (!matrixResult) {
     return `
-      <div class="page">
-        <div class="empty-state">
-          <div class="empty-state-icon">&#128203;</div>
-          <div class="empty-state-text">Программа ещё не сгенерирована</div>
-          <div class="empty-state-hint">Заполните профиль и нажмите кнопку генерации</div>
+      <div class="today-empty">
+        <div class="today-empty-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         </div>
+        <div class="today-empty-title">Нет активной программы</div>
+        <div class="today-empty-hint">Заполните профиль и сгенерируйте программу</div>
+        <button class="btn-primary-lg" data-tab="profile">Создать профиль</button>
       </div>
     `;
   }
 
-  const m = matrixResult;
-  const { profile, goals, originalGoals, eligibility, goalValidation, ceilings, macrocycleCount, emphases, macrocycles, validation, progression, totalWeeks } = m;
+  const session = getCurrentSession();
+  if (!session) return '<div class="today-empty"><div class="today-empty-title">Сессия не найдена</div></div>';
 
-  return `
-    <div class="page fade-in">
-      <h1 class="page-title">Программа тренировок</h1>
-      <p class="page-subtitle">${profile.weight} кг / ${profile.age} лет / подтягивания ${profile.pullUpMax} &rarr; ${goals.pullUps} / отжимания ${profile.pushUpMax} &rarr; ${goals.pushUps}</p>
+  const { macrocycles, profile, goals } = matrixResult;
+  const macro = macrocycles[selectedMacroIdx];
+  const meso = macro.mesocycles[selectedMesoIdx];
+  const week = meso.weeks[selectedWeekIdx];
 
-      ${renderEligibilityCallout(eligibility)}
-      ${renderGoalWarnings(goalValidation, originalGoals)}
-
-      <div class="stat-grid fade-in-delay-1">
-        <div class="stat-card">
-          <div class="stat-value">${macrocycleCount}</div>
-          <div class="stat-label">Макроциклов</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">${totalWeeks}</div>
-          <div class="stat-label">Недель</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">${ceilings.pull}</div>
-          <div class="stat-label">Потолок подтяг.</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">${ceilings.push}</div>
-          <div class="stat-label">Потолок отжим.</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">${Math.round(bwVolumeScale(profile.weight) * 100)}%</div>
-          <div class="stat-label">BW масштаб</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">${getMRV(profile.weight, 'pull')}/${getMRV(profile.weight, 'push')}</div>
-          <div class="stat-label">MRV pull/push</div>
-        </div>
-      </div>
-
-      <hr class="divider" />
-
-      ${renderEmphasisSection(emphases, macrocycleCount)}
-
-      <h2 class="section-title fade-in-delay-2">Прогрессия</h2>
-      <div class="chart-container fade-in-delay-2">
-        ${renderProgressionChart(progression, goals, ceilings)}
-      </div>
-
-      <hr class="divider" />
-
-      <h2 class="section-title fade-in-delay-3">Макроциклы</h2>
-      <div class="section-description">Нажмите на макроцикл, чтобы раскрыть детали</div>
-      ${macrocycles.map((macro, i) => renderMacrocycle(macro, i)).join('')}
-
-      <hr class="divider" />
-
-      <h2 class="section-title fade-in-delay-4">Валидация</h2>
-      ${renderValidationSection(validation)}
-
-      <hr class="divider" />
-
-      <div style="margin-top: var(--space-6);">
-        <button class="btn" id="export-csv-btn">Экспорт CSV</button>
-        <button class="btn" id="back-to-input-btn" style="margin-left: var(--space-2);">Изменить профиль</button>
-      </div>
-    </div>
-  `;
-}
-
-// ── Science Page ─────────────────────────────────────────────
-function renderSciencePage() {
-  return `
-    <div class="page fade-in">
-      <h1 class="page-title">Научная база</h1>
-      <p class="page-subtitle">Источники и обоснования для матрицы тренировок</p>
-
-      <div class="section-title">Нормативные данные: подтягивания</div>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Вес (кг)</th>
-              <th>Нов.</th>
-              <th>Сред.</th>
-              <th>Прод.</th>
-              <th>Элит.</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${[70, 80, 90, 100, 110, 120].map(bw => {
-              const n = getPullUpNorms(bw, 30);
-              return '<tr><td class="num">' + bw + '</td><td class="num">' + n.nov + '</td><td class="num">' + n.int + '</td><td class="num">' + n.adv + '</td><td class="num">' + n.eli + '</td></tr>';
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-      <div class="section-description" style="margin-bottom: var(--space-6);">Муж., 30 лет. Источник: Strength Level (4.8M lifts)</div>
-
-      <div class="section-title">Факторы возраста</div>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr><th>Возраст</th><th>Фактор</th></tr>
-          </thead>
-          <tbody>
-            <tr><td class="num">20-40</td><td class="num">1.00</td></tr>
-            <tr><td class="num">41-45</td><td class="num">0.85</td></tr>
-            <tr><td class="num">46-50</td><td class="num">0.65</td></tr>
-            <tr><td class="num">51-55</td><td class="num">0.50</td></tr>
-            <tr><td class="num">56-60</td><td class="num">0.30</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="section-description" style="margin-bottom: var(--space-6);">Источник: Kjaer et al. (2016)</div>
-
-      <div class="section-title">Почему программа ограничивает цели?</div>
-      <div style="font-size: var(--text-sm); line-height: var(--lh-relaxed); color: var(--fg-secondary); margin-bottom: var(--space-6);">
-        <p style="margin-bottom: var(--space-3);">Программа ограничивает целевые показатели до <strong>95% от физиологического потолка</strong> для вашего веса и возраста. Это не означает, что результат &laquo;невозможен&raquo; &mdash; но вероятность его достижения крайне мала, а стоимость попытки высока.</p>
-
-        <div class="section-title" style="font-size: var(--text-sm); margin-top: var(--space-4);">Что такое потолок?</div>
-        <p style="margin-bottom: var(--space-3);">Потолок &mdash; это <strong>95-й перцентиль</strong> нормативных данных (уровень &laquo;Elite&raquo;). Он основан на базе Strength Level (4.8 млн результатов) и означает: лишь 5% спортсменов данного веса достигают этого результата. Цель выше потолка означает, что вы хотите войти в топ 1-2% &mdash; для этого нет доказательной базы тренировочного программирования.</p>
-
-        <div class="section-title" style="font-size: var(--text-sm); margin-top: var(--space-4);">Почему потолок зависит от веса?</div>
-        <p style="margin-bottom: var(--space-3);">Подтягивания и отжимания &mdash; упражнения с собственным весом. Чем больше масса, тем больше работы совершает мышца на каждом повторении. <strong>Vanderburgh (2006, 2007)</strong> показал аллометрическое масштабирование: 1RM ~ M<sup>2/3</sup>. Это означает, что относительная сила падает с ростом массы по закону, а не по выбору. <strong>Sanchez-Moreno et al. (2016)</strong> подтвердили корреляцию r = &minus;0.55 между массой тела и результатом в подтягиваниях.</p>
-        <p style="margin-bottom: var(--space-3);">Пример: атлет 60 кг делает подтягивания с нагрузкой 0 кг. Атлет 100 кг делает подтягивания с нагрузкой 40 кг. Это эквивалентно разнице в 40 кг на штанге &mdash; естественно, что потолок повторений ниже.</p>
-
-        <div class="section-title" style="font-size: var(--text-sm); margin-top: var(--space-4);">Почему 100 отжиманий при 100 кг нереалистичны?</div>
-        <p style="margin-bottom: var(--space-3);">По данным Strength Level (2.9M lifts), элитный результат для 100 кг &mdash; 81 отжимание. Это 95-й перцентиль: лишь 5 из 100 спортсменов этого веса достигают такого уровня. 100 отжиманий потребовало бы результата в 123-й перцентиль &mdash; статистически не существующего в популяции этого веса.</p>
-        <p style="margin-bottom: var(--space-3);">Причина &mdash; не &laquo;слабость&raquo;, а <strong>биомеханика</strong>: каждое отжимание при 100 кг &mdash; это перемещение ~70 кг (64% массы приходится на руки в верхней точке). Для сравнения, атлет 65 кг перемещает ~45 кг. Разница &mdash; 25 кг на каждом повторении, умноженная на 100 повторений = 2500 кг дополнительной работы. 100 отжиманий реально при весе ~60-65 кг (элитный уровень: 95-102).</p>
-
-        <div class="section-title" style="font-size: var(--text-sm); margin-top: var(--space-4);">Почему цель ограничена 95%, а не 100% потолка?</div>
-        <p style="margin-bottom: var(--space-3);"><strong>Schoenfeld et al. (2023)</strong> показали, что мышечная адаптация имеет логарифмическую кривую с убывающей отдачей. Ближе к потолку скорость прогресса резко падает. Программирование тренировок для зоны 95-100% не имеет научной основы &mdash; нет достаточного количества данных о том, какие методы работают в этой зоне. 95% &mdash; это консервативная граница, за которой мы не можем гарантировать безопасность и эффективность.</p>
-
-        <div class="section-title" style="font-size: var(--text-sm); margin-top: var(--space-4);">Могу ли я превысить потолок?</div>
-        <p style="margin-bottom: var(--space-3);">Возможно, но это исключение, а не правило. Если вы уже находитесь выше потолка &mdash; вы статистический аутлайнер. Программа не может строить план на основе аномалий. В этом случае используйте потолок как ориентир и корректируйте программу самостоятельно.</p>
-      </div>
-
-      <div class="section-title">Нормативные данные: отжимания</div>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Вес (кг)</th>
-              <th>Нов.</th>
-              <th>Сред.</th>
-              <th>Прод.</th>
-              <th>Элит.</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${[70, 80, 90, 100, 110, 120].map(bw => {
-              const n = getPushUpNorms(bw, 30);
-              return '<tr><td class="num">' + bw + '</td><td class="num">' + n.nov + '</td><td class="num">' + n.int + '</td><td class="num">' + n.adv + '</td><td class="num">' + n.eli + '</td></tr>';
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-      <div class="section-description" style="margin-bottom: var(--space-6);">Муж., 30 лет. Источник: Strength Level (2.9M lifts)</div>
-
-      <div class="section-title">Ключевые исследования</div>
-      <div style="font-size: var(--text-sm); line-height: var(--lh-relaxed); color: var(--fg-secondary);">
-        <ul style="padding-left: var(--space-5); margin-bottom: var(--space-4);">
-          <li style="margin-bottom: var(--space-2);"><strong>Vanderburgh (2006, 2007)</strong> &mdash; Allometric scaling: 1RM ~ M<sup>2/3</sup>. BW penalty 15-20% for 60kg vs 90kg</li>
-          <li style="margin-bottom: var(--space-2);"><strong>Sanchez-Moreno et al. (2016)</strong> &mdash; Pull-ups: r = &minus;0.55 with body mass</li>
-          <li style="margin-bottom: var(--space-2);"><strong>Yu et al. (2021)</strong> &mdash; Cluster sets better weeks 1-8 (SMD=0.24), traditional better after 8 weeks (SMD=&minus;1.54)</li>
-          <li style="margin-bottom: var(--space-2);"><strong>Schoenfeld et al. (2023)</strong> &mdash; Finite muscular adaptation, logarithmic curve</li>
-          <li style="margin-bottom: var(--space-2);"><strong>Rhea et al.; Barsuhn et al. (2024)</strong> &mdash; ~1/3 of peak volume maintains developed qualities</li>
-          <li style="margin-bottom: var(--space-2);"><strong>Kjaer et al. (2016)</strong> &mdash; Inverse age association with MSMF scores (Beta = &minus;0.15 to &minus;0.91/year)</li>
-          <li><strong>Strength Level</strong> &mdash; Normative push-up and pull-up data by bodyweight and age (4.8M + 2.9M lifts)</li>
-        </ul>
-      </div>
-    </div>
-  `;
-}
-
-// ── Eligibility Callout ─────────────────────────────────────
-function renderEligibilityCallout(eligibility) {
-  if (eligibility.eligible) {
-    return `
-      <div class="callout callout-success fade-in-delay-1">
-        <span class="callout-icon">&#10003;</span>
-        <div>
-          <strong>Допуск получен</strong><br>
-          Подтягивания: ${eligibility.pull.max} (порог ${eligibility.pull.threshold}) &mdash; ${eligibility.pull.level}
-          <br>Отжимания: ${eligibility.push.max} (порог ${eligibility.push.threshold}) &mdash; ${eligibility.push.level}
-        </div>
-      </div>
-    `;
-  }
-  return `
-    <div class="callout callout-error fade-in-delay-1">
-      <span class="callout-icon">&#10007;</span>
-      <div>
-        <strong>Недостаточный уровень</strong><br>
-        Подтягивания: ${eligibility.pull.max} (нужно ${eligibility.pull.threshold}) &mdash; ${eligibility.pull.level}
-        <br>Отжимания: ${eligibility.push.max} (нужно ${eligibility.push.threshold}) &mdash; ${eligibility.push.level}
-        <br><em>Для спортсменов ниже Intermediate уровня достаточно самостоятельных тренировок.</em>
-      </div>
-    </div>
-  `;
-}
-
-// ── Goal Warnings ───────────────────────────────────────────
-function renderGoalWarnings(goalValidation, originalGoals) {
-  const warnings = [];
-  if (goalValidation.pull.warning) {
-    const label = goalValidation.pull.warning === 'capped_at_95pct_ceiling'
-      ? 'Цель подтягиваний ' + originalGoals.pullUps + ' превышает потолок &mdash; ограничено до ' + goalValidation.pull.capped
-      : 'Цель подтягиваний ' + originalGoals.pullUps + ' близка к потолку (' + Math.round(goalValidation.pull.ratio * 100) + '%)';
-    warnings.push(label);
-  }
-  if (goalValidation.push.warning) {
-    const label = goalValidation.push.warning === 'capped_at_95pct_ceiling'
-      ? 'Цель отжиманий ' + originalGoals.pushUps + ' превышает потолок &mdash; ограничено до ' + goalValidation.push.capped
-      : 'Цель отжиманий ' + originalGoals.pushUps + ' близка к потолку (' + Math.round(goalValidation.push.ratio * 100) + '%)';
-    warnings.push(label);
-  }
-
-  if (warnings.length === 0) return '';
-
-  return `
-    <div class="callout callout-warning fade-in-delay-1">
-      <span class="callout-icon">&#9888;</span>
-      <div>${warnings.join('<br>')}</div>
-    </div>
-  `;
-}
-
-// ── Emphasis Section ────────────────────────────────────────
-function renderEmphasisSection(emphases, count) {
-  return `
-    <h2 class="section-title fade-in-delay-2">Распределение акцентов</h2>
-    <div class="table-container fade-in-delay-2">
-      <table>
-        <thead>
-          <tr>
-            <th>Макроцикл</th>
-            <th>Подтягивания</th>
-            <th>Отжимания</th>
-            <th>Тип</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${emphases.map((e, i) => `
-            <tr>
-              <td class="num">${i + 1}</td>
-              <td class="num">${Math.round(e.pull * 100)}%</td>
-              <td class="num">${Math.round(e.push * 100)}%</td>
-              <td><span class="badge badge-blue">${e.label}</span></td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-
-// ── Progression Chart (SVG) ─────────────────────────────────
-function renderProgressionChart(progression, goals, ceilings) {
-  const width = 800;
-  const height = 180;
-  const padding = { top: 20, right: 20, bottom: 30, left: 40 };
-  const chartW = width - padding.left - padding.right;
-  const chartH = height - padding.top - padding.bottom;
-
-  const maxWeeks = progression.length;
-  const maxPull = Math.max(ceilings.pull, goals.pullUps) + 5;
-  const maxPush = Math.max(ceilings.push, goals.pushUps) + 10;
-
-  const scaleX = (week) => padding.left + (week / maxWeeks) * chartW;
-  const scalePullY = (val) => padding.top + chartH - (val / maxPull) * chartH;
-  const scalePushY = (val) => padding.top + chartH - (val / maxPush) * chartH;
-
-  const pullPoints = progression.map((p, i) => scaleX(i) + ',' + scalePullY(p.pullEstimate)).join(' ');
-  const pushPoints = progression.map((p, i) => scaleX(i) + ',' + scalePushY(p.pushEstimate)).join(' ');
-
-  const pullGoalY = scalePullY(goals.pullUps);
-  const pushGoalY = scalePushY(goals.pushUps);
-  const pullCeilingY = scalePullY(ceilings.pull);
-  const pushCeilingY = scalePushY(ceilings.push);
-
-  // Deload markers
-  const deloadMarks = progression
-    .filter((p, i) => (i + 1) % 4 === 0)
-    .map((p, idx) => {
-      const x = scaleX(idx * 4 + 3);
-      return '<line x1="' + x + '" y1="' + padding.top + '" x2="' + x + '" y2="' + (padding.top + chartH) + '" stroke="#e8e8e6" stroke-width="1" stroke-dasharray="3,3" />';
-    }).join('');
-
-  const xLabels = [];
-  for (let w = 0; w < maxWeeks; w += 4) {
-    xLabels.push('<text x="' + scaleX(w) + '" y="' + (height - 5) + '" text-anchor="middle" fill="#9b9a97" font-size="10" font-family="SFMono-Regular, Menlo, monospace">' + (w + 1) + '</text>');
-  }
-
-  return `
-    <svg viewBox="0 0 ${width} ${height}" class="chart-canvas" preserveAspectRatio="xMidYMid meet">
-      ${deloadMarks}
-      <line x1="${padding.left}" y1="${pullCeilingY}" x2="${width - padding.right}" y2="${pullCeilingY}" stroke="#dfdfde" stroke-width="1" stroke-dasharray="6,3" />
-      <line x1="${padding.left}" y1="${pushCeilingY}" x2="${width - padding.right}" y2="${pushCeilingY}" stroke="#dfdfde" stroke-width="1" stroke-dasharray="6,3" />
-      <line x1="${padding.left}" y1="${pullGoalY}" x2="${width - padding.right}" y2="${pullGoalY}" stroke="#2383e2" stroke-width="1" stroke-dasharray="4,4" />
-      <line x1="${padding.left}" y1="${pushGoalY}" x2="${width - padding.right}" y2="${pushGoalY}" stroke="#4dab6f" stroke-width="1" stroke-dasharray="4,4" />
-      <polyline points="${pullPoints}" fill="none" stroke="#2383e2" stroke-width="2" stroke-linejoin="round" />
-      <polyline points="${pushPoints}" fill="none" stroke="#4dab6f" stroke-width="2" stroke-linejoin="round" />
-      <line x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${padding.top + chartH}" stroke="#e8e8e6" stroke-width="1" />
-      <line x1="${padding.left}" y1="${padding.top + chartH}" x2="${width - padding.right}" y2="${padding.top + chartH}" stroke="#e8e8e6" stroke-width="1" />
-      <text x="${padding.left - 5}" y="${pullGoalY + 4}" text-anchor="end" fill="#2383e2" font-size="10" font-family="SFMono-Regular, Menlo, monospace">${goals.pullUps}</text>
-      <text x="${width - padding.right + 5}" y="${pushGoalY + 4}" text-anchor="start" fill="#4dab6f" font-size="10" font-family="SFMono-Regular, Menlo, monospace">${goals.pushUps}</text>
-      <text x="${padding.left - 5}" y="${pullCeilingY + 4}" text-anchor="end" fill="#9b9a97" font-size="9" font-family="SFMono-Regular, Menlo, monospace">${ceilings.pull}</text>
-      ${xLabels.join('')}
-      <circle cx="${padding.left + 10}" cy="${padding.top + 5}" r="3" fill="#2383e2" />
-      <text x="${padding.left + 18}" y="${padding.top + 9}" fill="#37352f" font-size="10" font-family="Plus Jakarta Sans, sans-serif">Подтягивания</text>
-      <circle cx="${padding.left + 110}" cy="${padding.top + 5}" r="3" fill="#4dab6f" />
-      <text x="${padding.left + 118}" y="${padding.top + 9}" fill="#37352f" font-size="10" font-family="Plus Jakarta Sans, sans-serif">Отжимания</text>
-    </svg>
-  `;
-}
-
-// ── Macrocycle ──────────────────────────────────────────────
-function renderMacrocycle(macro, index) {
-  const emphasisLabel = macro.emphasis.label.replace(/_/g, ' ');
-
-  return `
-    <div class="collapsible fade-in-delay-${Math.min(index + 2, 4)}" data-macro="${index}">
-      <button class="collapsible-header" data-toggle="macro-${index}">
-        <span class="toggle-icon">&#9654;</span>
-        <span>Макроцикл ${index + 1} &mdash; ${emphasisLabel}</span>
-        <span style="margin-left: auto; font-size: var(--text-xs); color: var(--fg-tertiary);">
-          Подт: ${macro.startPull} &rarr; ${macro.endPull} / Отж: ${macro.startPush} &rarr; ${macro.endPush}
-        </span>
-      </button>
-      <div class="collapsible-body" id="macro-${index}">
-        ${macro.mesocycles.map((meso, mi) => renderMesocycle(meso, mi, index)).join('')}
-      </div>
-    </div>
-  `;
-}
-
-// ── Mesocycle ───────────────────────────────────────────────
-function renderMesocycle(meso, mesoIndex, macroIndex) {
-  return `
-    <div style="margin-bottom: var(--space-4);">
-      <div style="font-weight: 600; font-size: var(--text-sm); color: var(--fg-secondary); margin-bottom: var(--space-2);">
-        Мезоцикл ${mesoIndex + 1}
-      </div>
-      ${meso.weeks.map((week, wi) => renderWeek(week, wi)).join('')}
-    </div>
-  `;
-}
-
-// ── Week ────────────────────────────────────────────────────
-function renderWeek(week, weekIndex) {
+  // Session info
+  const emphasis = macro.emphasis;
+  const weekLabel = `М${selectedMacroIdx + 1} · Мезо ${selectedMesoIdx + 1} · Нед ${selectedWeekIdx + 1}`;
   const isDeload = week.isDeload;
-  const weekLabel = isDeload
-    ? 'Неделя ' + week.week + ' &mdash; Разгрузка'
-    : 'Неделя ' + week.week;
 
-  const volBadge = isDeload
-    ? '<span class="badge badge-orange">разгрузка</span>'
-    : '<span class="badge badge-blue">' + Math.round(week.volFactor * 100) + '%</span>';
+  // Calculate total completed
+  const exercises = session.exercises || [];
+  let totalSets = 0, completedCount = 0;
+  exercises.forEach((ex, i) => {
+    totalSets += ex.sets;
+    completedCount += (completedSets[getSessionKey(i)] || 0);
+  });
 
   return `
-    <div class="week-header">
-      <span class="week-number">Н${week.week}</span>
-      <span style="font-size: var(--text-sm); font-weight: 500;">${weekLabel}</span>
-      ${volBadge}
+    <div class="today fade-in">
+      <!-- Session Header -->
+      <div class="session-top">
+        <div class="session-day">${DAY_LABELS[session.day]}</div>
+        <div class="session-meta">${weekLabel}${isDeload ? ' · Разгрузка' : ''}</div>
+        <div class="session-emphasis">${emphasis.label === 'pull_focus' ? 'Акцент: подтягивания' : emphasis.label === 'push_focus' ? 'Акцент: отжимания' : 'Баланс'}</div>
+      </div>
+
+      <!-- Day Selector Pills -->
+      <div class="day-pills">
+        ${DAY_KEYS.map((d, i) => {
+          const w = meso.weeks[selectedWeekIdx];
+          const s = w.sessions[i];
+          const isDel = s && s.isDeload;
+          return `<button class="pill ${i === selectedDayIdx ? 'pill-active' : ''} ${isDel ? 'pill-deload' : ''}" data-day="${i}">${DAY_SHORT[d]}</button>`;
+        }).join('')}
+      </div>
+
+      <!-- Week Navigator -->
+      <div class="week-nav">
+        <button class="nav-arrow" data-week-nav="prev">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span class="week-nav-label">Неделя ${selectedWeekIdx + 1} / ${meso.weeks.length}</span>
+        <button class="nav-arrow" data-week-nav="next">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="progress-bar-container">
+        <div class="progress-bar" style="width: ${totalSets > 0 ? Math.round(completedCount / totalSets * 100) : 0}%"></div>
+      </div>
+      <div class="progress-label">${completedCount} / ${totalSets} подходов</div>
+
+      <!-- Exercise Cards -->
+      <div class="exercise-list">
+        ${exercises.map((ex, i) => renderExerciseCard(ex, i, isDeload)).join('')}
+      </div>
+
+      <!-- Rest Timer -->
+      <div class="timer-section" id="timer-section">
+        <div class="timer-display" id="timer-display">
+          <span class="timer-time" id="timer-time">${formatTime(restTimer.remaining)}</span>
+        </div>
+        <div class="timer-controls">
+          <button class="timer-btn" data-timer="90">1:30</button>
+          <button class="timer-btn" data-timer="120">2:00</button>
+          <button class="timer-btn" data-timer="180">3:00</button>
+          <button class="timer-btn timer-start" data-timer="start">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Export & Reset -->
+      <div class="today-actions">
+        <button class="btn-secondary" id="export-csv-btn">CSV</button>
+        <button class="btn-secondary" id="reset-progress-btn">Сбросить прогресс</button>
+      </div>
     </div>
-    ${week.sessions.map(session => renderSession(session, isDeload)).join('')}
   `;
 }
 
-// ── Session ─────────────────────────────────────────────────
-function renderSession(session, isDeload) {
-  const dayLabels = { mon: 'Пн', wed: 'Ср', fri: 'Пт' };
-  const dayLabel = dayLabels[session.day] || session.day;
-
-  return `
-    <div class="session-card">
-      <div class="session-header">
-        <span class="day-badge">${dayLabel}</span>
-        <span>${session.label}</span>
-        ${isDeload ? '<span class="badge badge-orange" style="margin-left: auto;">30%</span>' : ''}
-      </div>
-      <div class="table-container" style="border: none; border-radius: 0;">
-        <table>
-          <thead>
-            <tr>
-              <th>Упражнение</th>
-              <th>Сеты</th>
-              <th>Повторы</th>
-              <th>Темп</th>
-              <th>Отдых</th>
-              <th>Тип</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${session.exercises.map(ex => renderExerciseRow(ex, isDeload)).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `;
-}
-
-// ── Exercise Row ────────────────────────────────────────────
-function renderExerciseRow(ex, isDeload) {
-  const rowClass = isDeload ? 'deload-row' : '';
-
-  let supersetTag = '';
-  if (ex.supersetGroup) {
-    const cls = ex.supersetGroup === 'A' ? 'superset-a' : 'superset-b';
-    supersetTag = '<span class="superset-tag ' + cls + '">' + ex.supersetGroup + '</span>';
-  }
-  if (ex.isClusterSuperset) {
-    supersetTag = '<span class="superset-tag superset-cluster">К</span>';
-  }
+// ── Exercise Card ───────────────────────────────────────────
+function renderExerciseCard(ex, idx, isDeload) {
+  const key = getSessionKey(idx);
+  const done = completedSets[key] || 0;
+  const allDone = done >= ex.sets;
 
   let repsDisplay = '';
   if (ex.type === 'cluster' && ex.parts) {
     repsDisplay = ex.parts.map(p => p.reps).join('+');
   } else if (ex.type === 'ladder' && ex.parts) {
-    repsDisplay = ex.parts.map(p => p.reps).join('-');
+    repsDisplay = ex.parts.map(p => p.reps).join('→');
   } else if (ex.type === 'emom') {
-    repsDisplay = ex.reps + ' x ' + ex.sets + ' раундов';
+    repsDisplay = `${ex.reps} × ${ex.sets} р`;
   } else {
     repsDisplay = ex.reps;
   }
@@ -549,101 +213,539 @@ function renderExerciseRow(ex, isDeload) {
   if (ex.type === 'emom') {
     restDisplay = 'EMOM 60с';
   } else if (ex.type === 'cluster' && ex.parts) {
-    const intraRest = ex.parts[0] && ex.parts[0].rest ? ex.parts[0].rest : 15;
-    restDisplay = intraRest + 'с / ' + ex.rest + 'с';
+    const intra = ex.parts[0] && ex.parts[0].rest ? ex.parts[0].rest : 15;
+    restDisplay = `${intra}с / ${ex.rest}с`;
   } else {
-    restDisplay = ex.rest + 'с';
+    restDisplay = `${ex.rest}с`;
   }
 
-  let typeBadge = '';
-  if (ex.type === 'cluster') typeBadge = '<span class="badge badge-green">кластер</span>';
-  else if (ex.type === 'ladder') typeBadge = '<span class="badge badge-blue">лестница</span>';
-  else if (ex.type === 'emom') typeBadge = '<span class="badge badge-orange">EMOM</span>';
-  else if (ex.isPrehab) typeBadge = '<span class="badge badge-green">прехаб</span>';
-  else if (ex.type === 'test') typeBadge = '<span class="badge badge-red">тест</span>';
+  let typeTag = '';
+  if (ex.type === 'cluster') typeTag = '<span class="tag tag-green">Кластер</span>';
+  else if (ex.type === 'ladder') typeTag = '<span class="tag tag-blue">Лестница</span>';
+  else if (ex.type === 'emom') typeTag = '<span class="tag tag-orange">EMOM</span>';
+  else if (ex.isPrehab) typeTag = '<span class="tag tag-green">Прехаб</span>';
+  else if (ex.type === 'test') typeTag = '<span class="tag tag-red">Тест</span>';
 
-  const fixedMarker = ex.fixedReps ? ' <span style="color:var(--fg-tertiary);font-size:10px;">&#9670;</span>' : '';
+  let groupTag = ex.group === 'pull'
+    ? '<span class="tag tag-purple">Подтяг</span>'
+    : '<span class="tag tag-teal">Отжим</span>';
+
+  let supersetTag = '';
+  if (ex.supersetGroup) supersetTag = `<span class="tag tag-gray">Суперсет ${ex.supersetGroup}</span>`;
+  if (ex.isClusterSuperset) supersetTag = '<span class="tag tag-green">Кластер-суперсет</span>';
 
   return `
-    <tr class="${rowClass}">
-      <td class="exercise-name">${supersetTag}${ex.name}${fixedMarker}</td>
-      <td class="num">${ex.sets}</td>
-      <td class="num">${repsDisplay}</td>
-      <td class="tempo">${ex.tempo || '&mdash;'}</td>
-      <td class="num">${restDisplay}</td>
-      <td>${typeBadge}</td>
-    </tr>
-  `;
-}
-
-// ── Validation Section ──────────────────────────────────────
-function renderValidationSection(validation) {
-  if (validation.passed) {
-    return `
-      <div class="callout callout-success">
-        <span class="callout-icon">&#10003;</span>
-        <div><strong>Валидация пройдена</strong> &mdash; нет критических проблем с объёмом или MRV</div>
+    <div class="ex-card ${allDone ? 'ex-done' : ''} ${isDeload ? 'ex-deload' : ''}" data-ex="${idx}">
+      <div class="ex-card-top">
+        <div class="ex-tags">${typeTag}${groupTag}${supersetTag}</div>
+        ${allDone ? '<div class="ex-check">&#10003;</div>' : ''}
       </div>
-    `;
-  }
-
-  const highIssues = validation.issues.filter(i => i.severity === 'high');
-  const medIssues = validation.issues.filter(i => i.severity === 'medium');
-
-  return `
-    <div class="callout callout-error">
-      <span class="callout-icon">&#10007;</span>
-      <div>
-        <strong>Обнаружены проблемы</strong> (${highIssues.length} критических, ${medIssues.length} средних)
-        <ul style="margin-top: var(--space-2); padding-left: var(--space-4); font-size: var(--text-xs);">
-          ${validation.issues.map(i => '<li>' + i.message + '</li>').join('')}
-        </ul>
+      <div class="ex-name">${ex.name}</div>
+      <div class="ex-numbers">
+        <div class="ex-sets-reps">
+          <span class="ex-sets">${ex.sets}</span>
+          <span class="ex-x">×</span>
+          <span class="ex-reps">${repsDisplay}</span>
+        </div>
+        <div class="ex-details">
+          <span class="ex-detail">Темп ${ex.tempo || '—'}</span>
+          <span class="ex-detail">Отдых ${restDisplay}</span>
+        </div>
+      </div>
+      <!-- Set Circles -->
+      <div class="ex-sets-track">
+        ${Array.from({ length: ex.sets }, (_, s) => `
+          <button class="set-circle ${s < done ? 'set-done' : ''}" data-set="${s}" data-ex-key="${key}" data-rest="${ex.rest}">
+            ${s < done ? '&#10003;' : (s + 1)}
+          </button>
+        `).join('')}
       </div>
     </div>
   `;
 }
 
-// ── Event Binding ───────────────────────────────────────────
+// ── Plan View ───────────────────────────────────────────────
+function renderPlanView() {
+  if (!matrixResult) {
+    return `
+      <div class="today-empty">
+        <div class="today-empty-title">Программа не создана</div>
+        <button class="btn-primary-lg" data-tab="profile">Создать профиль</button>
+      </div>
+    `;
+  }
+
+  const { macrocycles, profile, goals, originalGoals, eligibility, goalValidation, ceilings, macrocycleCount, emphases, totalWeeks, progression, validation } = matrixResult;
+
+  return `
+    <div class="plan fade-in">
+      <div class="plan-header">
+        <div class="plan-title">Программа</div>
+        <div class="plan-subtitle">${profile.weight} кг · ${profile.age} лет · ${goals.pullUps} / ${goals.pushUps}</div>
+      </div>
+
+      <!-- Eligibility -->
+      ${renderEligibilityBadge(eligibility)}
+      ${renderGoalWarnings(goalValidation, originalGoals)}
+
+      <!-- Key Stats -->
+      <div class="stats-row">
+        <div class="stat-item">
+          <div class="stat-num">${macrocycleCount}</div>
+          <div class="stat-lbl">Макроциклов</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">${totalWeeks}</div>
+          <div class="stat-lbl">Недель</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">${ceilings.pull}</div>
+          <div class="stat-lbl">Макс подтяг</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">${ceilings.push}</div>
+          <div class="stat-lbl">Макс отжим</div>
+        </div>
+      </div>
+
+      <!-- Emphasis -->
+      <div class="plan-section">
+        <div class="plan-section-title">Акценты по макроциклам</div>
+        <div class="emphasis-list">
+          ${emphases.map((e, i) => `
+            <div class="emphasis-item">
+              <span class="emphasis-num">М${i + 1}</span>
+              <span class="emphasis-label">${e.label === 'pull_focus' ? 'Подтягивания' : e.label === 'push_focus' ? 'Отжимания' : 'Баланс'}</span>
+              <span class="emphasis-ratio">${Math.round(e.pull * 100 / (e.pull + e.push))}%/${Math.round(e.push * 100 / (e.pull + e.push))}%</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Progression Chart -->
+      <div class="plan-section">
+        <div class="plan-section-title">Прогрессия</div>
+        <div class="chart-container">
+          ${renderProgressionChart(progression, goals, ceilings)}
+        </div>
+      </div>
+
+      <!-- Macrocycle Accordion -->
+      <div class="plan-section">
+        <div class="plan-section-title">Макроциклы</div>
+        ${macrocycles.map((macro, i) => renderMacrocycleAccordion(macro, i)).join('')}
+      </div>
+
+      <!-- Validation -->
+      <div class="plan-section">
+        <div class="plan-section-title">Валидация</div>
+        ${renderValidationBadge(validation)}
+      </div>
+
+      <div class="plan-actions">
+        <button class="btn-secondary" id="export-csv-btn">Экспорт CSV</button>
+      </div>
+    </div>
+  `;
+}
+
+// ── Macrocycle Accordion ────────────────────────────────────
+function renderMacrocycleAccordion(macro, macroIdx) {
+  const isOpen = macroIdx === selectedMacroIdx;
+  return `
+    <div class="macro-accordion">
+      <button class="macro-header ${isOpen ? 'open' : ''}" data-macro-toggle="${macroIdx}">
+        <span class="macro-label">Макроцикл ${macroIdx + 1}</span>
+        <span class="macro-emphasis">${macro.emphasis.label === 'pull_focus' ? 'Подтяг' : macro.emphasis.label === 'push_focus' ? 'Отжим' : 'Баланс'}</span>
+        <svg class="macro-chevron ${isOpen ? 'rotated' : ''}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      ${isOpen ? renderMesoList(macro, macroIdx) : ''}
+    </div>
+  `;
+}
+
+function renderMesoList(macro, macroIdx) {
+  return `
+    <div class="meso-list">
+      ${macro.mesocycles.map((meso, mesoIdx) => `
+        <div class="meso-item">
+          <div class="meso-label">Мезоцикл ${mesoIdx + 1}</div>
+          ${meso.weeks.map((week, weekIdx) => `
+            <div class="week-row ${week.isDeload ? 'week-deload' : ''}">
+              <span class="week-label">Нед ${weekIdx + 1}${week.isDeload ? ' (разгрузка)' : ''}</span>
+              <div class="week-days">
+                ${DAY_KEYS.map((d, dayIdx) => {
+                  const s = week.sessions[dayIdx];
+                  const exCount = s ? (s.exercises || []).length : 0;
+                  return `<button class="day-btn" data-goto="m${macroIdx}me${mesoIdx}w${weekIdx}d${dayIdx}">${DAY_SHORT[d]}<span class="day-ex-count">${exCount}</span></button>`;
+                }).join('')}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ── Profile View ────────────────────────────────────────────
+function renderProfileView() {
+  return `
+    <div class="profile fade-in">
+      <div class="profile-title">Профиль атлета</div>
+
+      <div class="form-section">
+        <div class="form-row">
+          <div class="field">
+            <label class="field-label">Вес (кг)</label>
+            <input type="number" class="field-input" id="weight" placeholder="100" min="40" max="150" value="100" inputmode="numeric">
+          </div>
+          <div class="field">
+            <label class="field-label">Возраст</label>
+            <input type="number" class="field-input" id="age" placeholder="30" min="15" max="65" value="30" inputmode="numeric">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label class="field-label">Пол</label>
+            <select class="field-input" id="sex">
+              <option value="male">Мужской</option>
+              <option value="female">Женский</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-divider"></div>
+        <div class="form-row">
+          <div class="field">
+            <label class="field-label">Макс. подтягивания</label>
+            <input type="number" class="field-input" id="pullUpMax" placeholder="20" min="0" max="60" value="20" inputmode="numeric">
+          </div>
+          <div class="field">
+            <label class="field-label">Макс. отжимания</label>
+            <input type="number" class="field-input" id="pushUpMax" placeholder="50" min="0" max="200" value="50" inputmode="numeric">
+          </div>
+        </div>
+        <div class="form-divider"></div>
+        <div class="form-row">
+          <div class="field">
+            <label class="field-label">Цель: подтягивания</label>
+            <input type="number" class="field-input" id="goalPull" placeholder="28" min="0" max="60" value="28" inputmode="numeric">
+          </div>
+          <div class="field">
+            <label class="field-label">Цель: отжимания</label>
+            <input type="number" class="field-input" id="goalPush" placeholder="81" min="0" max="200" value="81" inputmode="numeric">
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-primary-lg" id="generate-btn">Сгенерировать программу</button>
+
+      <div id="eligibility-result"></div>
+    </div>
+  `;
+}
+
+// ── Science View ────────────────────────────────────────────
+function renderScienceView() {
+  return `
+    <div class="science fade-in">
+      <div class="science-title">Научная база</div>
+
+      <div class="science-section">
+        <div class="science-section-title">Нормативы: подтягивания</div>
+        <div class="norms-table-wrap">
+          <table class="norms-table">
+            <thead><tr><th>Вес</th><th>Нов</th><th>Сред</th><th>Прод</th><th>Элит</th></tr></thead>
+            <tbody>
+              ${[70, 80, 90, 100, 110, 120].map(bw => {
+                const n = getPullUpNorms(bw, 30);
+                return `<tr><td>${bw}</td><td>${n.nov}</td><td>${n.int}</td><td>${n.adv}</td><td>${n.eli}</td></tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div class="norms-source">Муж., 30 лет. Strength Level (4.8M lifts)</div>
+      </div>
+
+      <div class="science-section">
+        <div class="science-section-title">Нормативы: отжимания</div>
+        <div class="norms-table-wrap">
+          <table class="norms-table">
+            <thead><tr><th>Вес</th><th>Нов</th><th>Сред</th><th>Прод</th><th>Элит</th></tr></thead>
+            <tbody>
+              ${[70, 80, 90, 100, 110, 120].map(bw => {
+                const n = getPushUpNorms(bw, 30);
+                return `<tr><td>${bw}</td><td>${n.nov}</td><td>${n.int}</td><td>${n.adv}</td><td>${n.eli}</td></tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div class="norms-source">Муж., 30 лет. Strength Level (2.9M lifts)</div>
+      </div>
+
+      <div class="science-section">
+        <div class="science-section-title">Факторы возраста</div>
+        <div class="age-factors">
+          <div class="age-row"><span>20–40</span><span>1.00</span></div>
+          <div class="age-row"><span>41–45</span><span>0.85</span></div>
+          <div class="age-row"><span>46–50</span><span>0.65</span></div>
+          <div class="age-row"><span>51–55</span><span>0.50</span></div>
+          <div class="age-row"><span>56–60</span><span>0.30</span></div>
+        </div>
+        <div class="norms-source">Kjaer et al. (2016)</div>
+      </div>
+
+      <div class="science-section">
+        <div class="science-section-title">Потолок целей</div>
+        <div class="science-text">Потолок — 95-й перцентиль (Elite). По данным Strength Level (4.8M + 2.9M lifts), лишь 5% спортсменов данного веса достигают этого результата. Цели выше потолка ограничены 95% его значения.</div>
+        <div class="science-text"><strong>Почему 100 отжиманий при 100 кг нереалистичны?</strong> Элитный результат для 100 кг — 81 отжимание (Strength Level, 2.9M lifts). 100 отжиманий = 123-й перцентиль. 100 отжиманий реально при ~60–65 кг (элитный: 95–102).</div>
+        <div class="science-text"><strong>Schoenfeld et al. (2023)</strong>: мышечная адаптация имеет логарифмическую кривую. Ближе к потолку прогресс резко замедляется. 95% — граница, за которой нет доказательной базы.</div>
+      </div>
+
+      <div class="science-section">
+        <div class="science-section-title">Исследования</div>
+        <div class="refs-list">
+          <div class="ref-item"><strong>Vanderburgh (2006, 2007)</strong> — Allometric scaling: 1RM ~ M<sup>2/3</sup></div>
+          <div class="ref-item"><strong>Sanchez-Moreno et al. (2016)</strong> — Pull-ups: r = −0.55 with body mass</div>
+          <div class="ref-item"><strong>Yu et al. (2021)</strong> — Cluster sets: SMD=0.24 (wks 1-8), SMD=−1.54 (after wk 8)</div>
+          <div class="ref-item"><strong>Schoenfeld et al. (2023)</strong> — Finite muscular adaptation, logarithmic curve</div>
+          <div class="ref-item"><strong>Rhea et al.; Barsuhn et al. (2024)</strong> — ~1/3 peak volume maintains qualities</div>
+          <div class="ref-item"><strong>Kjaer et al. (2016)</strong> — Age × MSMF: Beta = −0.15 to −0.91/year</div>
+          <div class="ref-item"><strong>Strength Level</strong> — Normative data: 4.8M + 2.9M lifts</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── Eligibility Badge ──────────────────────────────────────
+function renderEligibilityBadge(eligibility) {
+  if (eligibility.eligible) {
+    return `
+      <div class="badge-success">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>Допуск получен</span>
+        <span class="badge-detail">Подтяг: ${eligibility.pull.max} (${LEVEL_LABELS[eligibility.pull.level]}) · Отжим: ${eligibility.push.max} (${LEVEL_LABELS[eligibility.push.level]})</span>
+      </div>
+    `;
+  }
+  return `
+    <div class="badge-error">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      <span>Недостаточный уровень</span>
+      <span class="badge-detail">Порог: подтяг ≥${eligibility.pull.threshold}, отжим ≥${eligibility.push.threshold}</span>
+    </div>
+  `;
+}
+
+// ── Goal Warnings ──────────────────────────────────────────
+function renderGoalWarnings(gv, original) {
+  const warnings = [];
+  if (gv.pull.warning === 'approaching_ceiling') warnings.push(`Подтяг: цель близка к потолку (${Math.round(gv.pull.ratio * 100)}%)`);
+  if (gv.pull.warning === 'capped_at_95pct_ceiling') warnings.push(`Подтяг: ${original.pullUps} → ограничено до ${gv.pull.capped}`);
+  if (gv.push.warning === 'approaching_ceiling') warnings.push(`Отжим: цель близка к потолку (${Math.round(gv.push.ratio * 100)}%)`);
+  if (gv.push.warning === 'capped_at_95pct_ceiling') warnings.push(`Отжим: ${original.pushUps} → ограничено до ${gv.push.capped}`);
+  if (warnings.length === 0) return '';
+  return `<div class="badge-warning">${warnings.map(w => `<span>${w}</span>`).join('')}</div>`;
+}
+
+// ── Validation Badge ──────────────────────────────────────
+function renderValidationBadge(validation) {
+  if (validation.passed) {
+    return '<div class="badge-success"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>Валидация пройдена</span></div>';
+  }
+  const high = validation.issues.filter(i => i.severity === 'high').length;
+  const med = validation.issues.filter(i => i.severity === 'medium').length;
+  return `<div class="badge-error"><span>${high} крит., ${med} средних</span></div>`;
+}
+
+// ── Progression Chart (SVG) ────────────────────────────────
+function renderProgressionChart(progression, goals, ceilings) {
+  if (!progression || progression.length === 0) return '<div class="chart-empty">Нет данных прогрессии</div>';
+
+  const w = 320, h = 140, pad = 30;
+  const maxWeeks = progression.length;
+  const maxReps = Math.max(ceilings.pull, ceilings.push, ...progression.map(p => Math.max(p.pull, p.push)));
+  const scaleW = (w - pad * 2) / Math.max(maxWeeks - 1, 1);
+  const scaleH = (h - pad * 2) / maxReps;
+
+  const pullPts = progression.map((p, i) => `${pad + i * scaleW},${h - pad - p.pull * scaleH}`).join(' ');
+  const pushPts = progression.map((p, i) => `${pad + i * scaleW},${h - pad - p.push * scaleH}`).join(' ');
+
+  const pullCeilY = h - pad - ceilings.pull * scaleH;
+  const pushCeilY = h - pad - ceilings.push * scaleH;
+
+  return `
+    <svg class="chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">
+      <!-- Ceiling lines -->
+      <line x1="${pad}" y1="${pullCeilY}" x2="${w - pad}" y2="${pullCeilY}" stroke="var(--accent)" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
+      <line x1="${pad}" y1="${pushCeilY}" x2="${w - pad}" y2="${pushCeilY}" stroke="var(--teal)" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
+      <!-- Ceiling labels -->
+      <text x="${w - pad + 3}" y="${pullCeilY + 4}" fill="var(--accent)" font-size="9" font-family="var(--font-mono)">${ceilings.pull}</text>
+      <text x="${w - pad + 3}" y="${pushCeilY + 4}" fill="var(--teal)" font-size="9" font-family="var(--font-mono)">${ceilings.push}</text>
+      <!-- Pull line -->
+      <polyline points="${pullPts}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Push line -->
+      <polyline points="${pushPts}" fill="none" stroke="var(--teal)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Axes -->
+      <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${h - pad}" stroke="var(--border)" stroke-width="1"/>
+      <line x1="${pad}" y1="${h - pad}" x2="${w - pad}" y2="${h - pad}" stroke="var(--border)" stroke-width="1"/>
+      <!-- Legend -->
+      <circle cx="${pad + 10}" cy="${pad + 10}" r="4" fill="var(--accent)"/>
+      <text x="${pad + 18}" y="${pad + 13}" fill="var(--fg-secondary)" font-size="9">Подтяг</text>
+      <circle cx="${pad + 70}" cy="${pad + 10}" r="4" fill="var(--teal)"/>
+      <text x="${pad + 78}" y="${pad + 13}" fill="var(--fg-secondary)" font-size="9">Отжим</text>
+    </svg>
+  `;
+}
+
+// ── Timer ──────────────────────────────────────────────────
+function formatTime(seconds) {
+  const m = Math.floor(Math.max(0, seconds) / 60);
+  const s = Math.max(0, seconds) % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function startTimer(seconds) {
+  clearInterval(restTimer.interval);
+  restTimer.active = true;
+  restTimer.remaining = seconds;
+  restTimer.target = seconds;
+
+  restTimer.interval = setInterval(() => {
+    restTimer.remaining--;
+    const el = document.getElementById('timer-time');
+    if (el) el.textContent = formatTime(restTimer.remaining);
+    if (restTimer.remaining <= 0) {
+      clearInterval(restTimer.interval);
+      restTimer.active = false;
+      const el2 = document.getElementById('timer-time');
+      if (el2) el2.textContent = '0:00';
+      // Vibrate if supported
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    }
+  }, 1000);
+
+  const el = document.getElementById('timer-time');
+  if (el) el.textContent = formatTime(restTimer.remaining);
+}
+
+function restoreTimer() {
+  if (restTimer.active) {
+    const el = document.getElementById('timer-time');
+    if (el) el.textContent = formatTime(restTimer.remaining);
+  }
+}
+
+// ── Event Binding ──────────────────────────────────────────
 function bindEvents() {
-  document.querySelectorAll('[data-nav]').forEach(link => {
-    link.addEventListener('click', (e) => {
-      e.preventDefault();
-      currentView = e.target.closest('[data-nav]').dataset.nav;
+  // Tab bar
+  document.querySelectorAll('[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentView = btn.dataset.tab;
       render();
     });
   });
 
+  // Generate button
   const genBtn = document.getElementById('generate-btn');
-  if (genBtn) {
-    genBtn.addEventListener('click', handleGenerate);
-  }
+  if (genBtn) genBtn.addEventListener('click', handleGenerate);
 
-  document.querySelectorAll('[data-toggle]').forEach(btn => {
+  // Day pills
+  document.querySelectorAll('[data-day]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const targetId = btn.dataset.toggle;
-      const body = document.getElementById(targetId);
-      if (body) {
-        body.classList.toggle('open');
-        btn.classList.toggle('open');
+      selectedDayIdx = parseInt(btn.dataset.day);
+      render();
+    });
+  });
+
+  // Week navigation
+  document.querySelectorAll('[data-week-nav]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const macro = matrixResult.macrocycles[selectedMacroIdx];
+      const meso = macro.mesocycles[selectedMesoIdx];
+      if (btn.dataset.weekNav === 'prev' && selectedWeekIdx > 0) selectedWeekIdx--;
+      if (btn.dataset.weekNav === 'next' && selectedWeekIdx < meso.weeks.length - 1) selectedWeekIdx++;
+      render();
+    });
+  });
+
+  // Set circles — track completion
+  document.querySelectorAll('.set-circle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.exKey;
+      const setIdx = parseInt(btn.dataset.set);
+      const rest = parseInt(btn.dataset.rest) || 90;
+      const current = completedSets[key] || 0;
+
+      if (setIdx < current) {
+        // Undo
+        completedSets[key] = setIdx;
+      } else if (setIdx === current) {
+        // Complete this set
+        completedSets[key] = setIdx + 1;
+        // Auto-start rest timer
+        startTimer(rest);
+      }
+      saveProgress();
+      render();
+    });
+  });
+
+  // Timer buttons
+  document.querySelectorAll('[data-timer]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.timer;
+      if (val === 'start') {
+        startTimer(restTimer.target || 90);
+      } else {
+        startTimer(parseInt(val));
       }
     });
   });
 
-  const exportBtn = document.getElementById('export-csv-btn');
-  if (exportBtn) {
-    exportBtn.addEventListener('click', handleExportCSV);
-  }
+  // Macro accordion
+  document.querySelectorAll('[data-macro-toggle]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.macroToggle);
+      selectedMacroIdx = idx;
+      selectedMesoIdx = 0;
+      selectedWeekIdx = 0;
+      render();
+    });
+  });
 
-  const backBtn = document.getElementById('back-to-input-btn');
-  if (backBtn) {
-    backBtn.addEventListener('click', () => {
-      currentView = 'input';
+  // Goto session from plan
+  document.querySelectorAll('[data-goto]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const parts = btn.dataset.goto.match(/m(\d+)me(\d+)w(\d+)d(\d+)/);
+      if (parts) {
+        selectedMacroIdx = parseInt(parts[1]);
+        selectedMesoIdx = parseInt(parts[2]);
+        selectedWeekIdx = parseInt(parts[3]);
+        selectedDayIdx = parseInt(parts[4]);
+        currentView = 'today';
+        render();
+      }
+    });
+  });
+
+  // CSV export
+  const exportBtn = document.getElementById('export-csv-btn');
+  if (exportBtn) exportBtn.addEventListener('click', handleExportCSV);
+
+  // Reset progress
+  const resetBtn = document.getElementById('reset-progress-btn');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      completedSets = {};
+      saveProgress();
       render();
     });
   }
 }
 
-// ── Generate Handler ────────────────────────────────────────
+// ── Generate Handler ───────────────────────────────────────
 function handleGenerate() {
   const weight = parseInt(document.getElementById('weight').value) || 100;
   const age = parseInt(document.getElementById('age').value) || 30;
@@ -660,34 +762,31 @@ function handleGenerate() {
   const resultDiv = document.getElementById('eligibility-result');
 
   if (!eligibility.eligible) {
-    resultDiv.innerHTML = renderEligibilityCallout(eligibility);
+    resultDiv.innerHTML = renderEligibilityBadge(eligibility);
     matrixResult = null;
     return;
   }
 
   try {
     matrixResult = generateMatrix(profile, goals);
-    currentView = 'program';
+    completedSets = {};
+    saveProgress();
+    selectedMacroIdx = 0;
+    selectedMesoIdx = 0;
+    selectedWeekIdx = 0;
+    selectedDayIdx = 0;
+    currentView = 'today';
     render();
   } catch (e) {
-    const resultDiv2 = document.getElementById('eligibility-result');
-    if (resultDiv2) {
-      resultDiv2.innerHTML = `
-        <div class="callout callout-error">
-          <span class="callout-icon">&#10007;</span>
-          <div><strong>Ошибка генерации</strong><br>${e.message}</div>
-        </div>
-      `;
-    }
+    resultDiv.innerHTML = `<div class="badge-error"><span>Ошибка: ${e.message}</span></div>`;
   }
 }
 
-// ── CSV Export ──────────────────────────────────────────────
+// ── CSV Export ─────────────────────────────────────────────
 function handleExportCSV() {
   if (!matrixResult) return;
-
   const rows = exportMatrix(matrixResult);
-  const headers = ['macro', 'meso', 'week', 'weekInMeso', 'isDeload', 'day', 'exercise', 'exerciseEn', 'group', 'type', 'sets', 'reps', 'volume', 'rest', 'tempo', 'isPrehab', 'fixedReps', 'supersetGroup', 'emphasis'];
+  const headers = ['macro','meso','week','weekInMeso','isDeload','day','exercise','exerciseEn','group','type','sets','reps','volume','rest','tempo','isPrehab','fixedReps','supersetGroup','emphasis'];
   const csv = [
     headers.join(','),
     ...rows.map(row => headers.map(h => {
@@ -696,7 +795,6 @@ function handleExportCSV() {
       return val;
     }).join(','))
   ].join('\n');
-
   const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -706,5 +804,5 @@ function handleExportCSV() {
   URL.revokeObjectURL(url);
 }
 
-// ── Init ────────────────────────────────────────────────────
+// ── Init ───────────────────────────────────────────────────
 render();
