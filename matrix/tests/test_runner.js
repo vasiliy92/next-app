@@ -89,10 +89,10 @@ test('Pull-up norms at 70kg: intermediate=14, advanced=24, elite=35', () => {
   assertEqual(n.eli, 35);
 });
 
-test('Push-up norms at 100kg: intermediate=28, elite=59', () => {
+test('Push-up norms at 100kg: intermediate=37, elite=81', () => {
   const n = norms.PUSH_UP_BY_BW[100];
-  assertEqual(n.int, 28);
-  assertEqual(n.eli, 59);
+  assertEqual(n.int, 37);
+  assertEqual(n.eli, 81);
 });
 
 test('BW interpolation: 75kg pull-up intermediate=14', () => {
@@ -135,6 +135,30 @@ test('Combined norms: 100kg/50yo pull-up = min(BW=12, Age=9) = 9', () => {
   assertEqual(n.int, 9);
 });
 
+test('Push-up age norms: 30yo intermediate=41, elite=99', () => {
+  const n = norms.lookupByAge(norms.PUSH_UP_BY_AGE, 30);
+  assertEqual(n.int, 41);
+  assertEqual(n.eli, 99);
+});
+
+test('Push-up age norms: 50yo intermediate=33, elite=84', () => {
+  const n = norms.lookupByAge(norms.PUSH_UP_BY_AGE, 50);
+  assertEqual(n.int, 33);
+  assertEqual(n.eli, 84);
+});
+
+test('Combined norms: 100kg/30yo push-up = min(BW=37, Age=41) = 37', () => {
+  const n = norms.getPushUpNorms(100, 30);
+  assertEqual(n.int, 37);
+  assertEqual(n.eli, 81); // min(BW_eli=81, Age_eli=99)
+});
+
+test('Combined norms: 100kg/50yo push-up = min(BW=37, Age=33) = 33', () => {
+  const n = norms.getPushUpNorms(100, 50);
+  assertEqual(n.int, 33);
+  assertEqual(n.eli, 81); // min(BW_eli=81, Age_eli=84)
+});
+
 test('Age factor: 30yo = 1.0', () => {
   assertEqual(norms.getAgeFactor(30), 1.0);
 });
@@ -164,10 +188,10 @@ test('Beginner (100kg, 30yo, pull:5, push:15) is NOT eligible', () => {
   assertEqual(result.pull.level, 'novice');
 });
 
-test('Threshold for 100kg/30yo: pull≥12, push≥28', () => {
+test('Threshold for 100kg/30yo: pull≥12, push≥37', () => {
   const result = athlete.checkEligibility({ weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 });
   assertEqual(result.pull.threshold, 12);
-  assertEqual(result.push.threshold, 28);
+  assertEqual(result.push.threshold, 37);
 });
 
 test('Age-adjusted threshold for 100kg/48yo: lower than 30yo', () => {
@@ -187,7 +211,7 @@ test('Invalid sex throws error', () => {
 });
 
 test('Edge: exactly at threshold is eligible', () => {
-  const result = athlete.checkEligibility({ weight: 100, age: 30, sex: 'male', pullUpMax: 12, pushUpMax: 28 });
+  const result = athlete.checkEligibility({ weight: 100, age: 30, sex: 'male', pullUpMax: 12, pushUpMax: 37 });
   assertTrue(result.eligible);
   assertEqual(result.pull.level, 'intermediate');
 });
@@ -224,12 +248,12 @@ test('Goal 26 pull-ups at 100kg: ratio 26/28=0.93 → approaching_ceiling warnin
   assertEqual(result.pull.capped, 26); // not capped, just warned
 });
 
-test('Push-up goal 120 at 100kg: ratio 120/59=2.03 → capped at 56', () => {
+test('Push-up goal 120 at 100kg: ratio 120/81=1.48 → capped at 77', () => {
   const result = athlete.validateGoals(
     { weight: 100, age: 30 },
     { pullUps: 25, pushUps: 120 }
   );
-  assertEqual(result.push.capped, 56); // 59 * 0.95 = 56.05 → 56
+  assertEqual(result.push.capped, 77); // 81 * 0.95 = 76.95 → 77
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -254,10 +278,10 @@ test('Pull-up weekly rate at 20/28 ceiling ≈ 0.35-0.45', () => {
   assertApprox(rate, 0.38, 0.08);
 });
 
-test('Push-up weekly rate at 50/59 ceiling ≈ 0.7-0.9', () => {
-  const rate = progression.getPushUpWeeklyRate(50, 59, 0);
-  // gapRatio=9/59=0.152, decay=0.152^0.6=0.324, baseRate=2.5 → 0.81
-  assertApprox(rate, 0.81, 0.10);
+test('Push-up weekly rate at 50/81 ceiling ≈ 1.3-1.5', () => {
+  const rate = progression.getPushUpWeeklyRate(50, 81, 0);
+  // gapRatio=31/81=0.383, decay=0.383^0.6=0.562, baseRate=2.5 → 1.40
+  assertApprox(rate, 1.40, 0.15);
 });
 
 test('Estimate weeks to goal: 20→25 pull-ups at ceiling 28', () => {
@@ -407,7 +431,7 @@ console.log('\n🧮 Section 7: Full Matrix Generation');
 test('Vasilii matrix: generates successfully', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 } // goals at ceiling
+    { pullUps: 28, pushUps: 81 } // goals at ceiling
   );
   assertTrue(m.eligibility.eligible);
   assertTrue(m.macrocycles.length >= 1);
@@ -417,7 +441,7 @@ test('Vasilii matrix: generates successfully', () => {
 test('Vasilii matrix: every macrocycle has 3 mesocycles', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   m.macrocycles.forEach(macro => {
     assertEqual(macro.mesocycles.length, 3);
@@ -427,7 +451,7 @@ test('Vasilii matrix: every macrocycle has 3 mesocycles', () => {
 test('Vasilii matrix: every mesocycle has 4 weeks', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   m.macrocycles.forEach(macro => {
     macro.mesocycles.forEach(meso => {
@@ -439,7 +463,7 @@ test('Vasilii matrix: every mesocycle has 4 weeks', () => {
 test('Vasilii matrix: week 4 of every meso is deload', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   m.macrocycles.forEach(macro => {
     macro.mesocycles.forEach(meso => {
@@ -454,7 +478,7 @@ test('Vasilii matrix: week 4 of every meso is deload', () => {
 test('Vasilii matrix: every week has 3 sessions (Mon/Wed/Fri)', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   m.macrocycles.forEach(macro => {
     macro.mesocycles.forEach(meso => {
@@ -472,7 +496,7 @@ test('Vasilii matrix: every week has 3 sessions (Mon/Wed/Fri)', () => {
 test('Vasilii matrix: validation passes (no high-severity issues)', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   assertTrue(m.validation.passed, `Validation failed: ${JSON.stringify(m.validation.issues)}`);
 });
@@ -480,7 +504,7 @@ test('Vasilii matrix: validation passes (no high-severity issues)', () => {
 test('Vasilii matrix: deload sessions have isDeload=true', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   m.macrocycles.forEach(macro => {
     macro.mesocycles.forEach(meso => {
@@ -495,7 +519,7 @@ test('Vasilii matrix: deload sessions have isDeload=true', () => {
 test('Vasilii matrix: prehab exercises have fixedReps=true', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   m.macrocycles.forEach(macro => {
     macro.mesocycles.forEach(meso => {
@@ -515,7 +539,7 @@ test('Vasilii matrix: prehab exercises have fixedReps=true', () => {
 test('Vasilii matrix: EMOM exercises have fixedReps=true', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   m.macrocycles.forEach(macro => {
     macro.mesocycles.forEach(meso => {
@@ -542,9 +566,9 @@ test('Vasilii: classified as advanced for pull-ups at 100kg', () => {
   assertEqual(result.pull.level, 'advanced');
 });
 
-test('Vasilii: classified as advanced for push-ups at 100kg', () => {
+test('Vasilii: classified as intermediate for push-ups at 100kg', () => {
   const result = athlete.checkEligibility({ weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 });
-  assertEqual(result.push.level, 'advanced'); // 50 > adv(38)
+  assertEqual(result.push.level, 'intermediate'); // 50 < adv(58) at 100kg
 });
 
 test('Vasilii: pull-up ceiling at 100kg/30yo = 28', () => {
@@ -552,25 +576,25 @@ test('Vasilii: pull-up ceiling at 100kg/30yo = 28', () => {
   assertEqual(norms28.eli, 28);
 });
 
-test('Vasilii: push-up ceiling at 100kg/30yo = 59', () => {
-  const norms59 = norms.getPushUpNorms(100, 30);
-  assertEqual(norms59.eli, 59);
+test('Vasilii: push-up ceiling at 100kg/30yo = 81', () => {
+  const norms81 = norms.getPushUpNorms(100, 30);
+  assertEqual(norms81.eli, 81);
 });
 
-test('Vasilii: 4 macrocycles for goals 28/59 (at ceiling)', () => {
+test('Vasilii: macrocycle count for goals 28/81 (at ceiling)', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
-  // Gap: pull=8/28=0.29 → 2 macros; push=9/59=0.15 → 1 macro
-  // Max = 2
-  assertTrue(m.macrocycleCount >= 1);
+  // Gap: pull=8/28=0.29 → 2 macros; push=31/81=0.38 → 3 macros
+  // Max = 3
+  assertTrue(m.macrocycleCount >= 2);
 });
 
 test('Vasilii: export matrix produces rows', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   const rows = matrix.exportMatrix(m);
   assertTrue(rows.length > 0, 'Export should produce rows');
@@ -591,7 +615,7 @@ console.log('\n🔗 Section 9: Cross-Module Integrity');
 test('No exercise in matrix has undefined id', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   m.macrocycles.forEach(macro => {
     macro.mesocycles.forEach(meso => {
@@ -609,7 +633,7 @@ test('No exercise in matrix has undefined id', () => {
 test('All cluster exercises have parts array', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   m.macrocycles.forEach(macro => {
     macro.mesocycles.forEach(meso => {
@@ -630,7 +654,7 @@ test('All cluster exercises have parts array', () => {
 test('All ladder exercises have parts array', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   m.macrocycles.forEach(macro => {
     macro.mesocycles.forEach(meso => {
@@ -651,7 +675,7 @@ test('All ladder exercises have parts array', () => {
 test('Cluster superset exercises have isClusterSuperset=true', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   let foundClusterSuperset = false;
   m.macrocycles.forEach(macro => {
@@ -675,7 +699,7 @@ test('Cluster superset exercises have isClusterSuperset=true', () => {
 test('No volume regression >30% between non-deload weeks (within mesocycle)', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   // This is checked by the validation module, but let's verify explicitly
   assertTrue(m.validation.passed || m.validation.highSeverityCount === 0);
@@ -730,7 +754,7 @@ test('Extreme BW edge: 40kg uses minimum bucket (50kg)', () => {
 
 test('Extreme BW edge: 150kg uses maximum bucket (140kg)', () => {
   const n = norms.lookupByBW(norms.PUSH_UP_BY_BW, 150);
-  assertEqual(n.int, 19); // 140kg bucket
+  assertEqual(n.int, 32); // 140kg bucket
 });
 
 test('Age 15 lookup: nearest bucket is 15', () => {
@@ -764,7 +788,7 @@ test('Age out of range throws error', () => {
 test('Deload session structure: only pull-up, push-up, and prehab', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   const deloadWeek = m.macrocycles[0].mesocycles[0].weeks[3];
   deloadWeek.sessions.forEach(session => {
@@ -785,7 +809,7 @@ console.log('\n⏱️ Section 12: Session Duration');
 test('All Vasilii sessions fit within 90-minute cap', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   m.macrocycles.forEach(macro => {
     macro.mesocycles.forEach(meso => {
@@ -802,7 +826,7 @@ test('All Vasilii sessions fit within 90-minute cap', () => {
 test('Deload sessions are shorter than build sessions', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   const meso = m.macrocycles[0].mesocycles[0];
   const buildDuration = volume.estimateSessionDuration(meso.weeks[0].sessions[0].exercises || []);
@@ -829,7 +853,7 @@ console.log('\n🎵 Section 13: Tempo Notation');
 test('All exercises in matrix have valid 4-digit tempo', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   m.macrocycles.forEach(macro => {
     macro.mesocycles.forEach(meso => {
@@ -850,7 +874,7 @@ test('All exercises in matrix have valid 4-digit tempo', () => {
 test('No exercise uses legacy 2020 tempo format', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   m.macrocycles.forEach(macro => {
     macro.mesocycles.forEach(meso => {
@@ -873,7 +897,7 @@ console.log('\n🔗 Section 14: Cluster Structure');
 test('Cluster parts have valid intra-cluster rest (15s) between mini-sets, not 180s', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   m.macrocycles.forEach(macro => {
     macro.mesocycles.forEach(meso => {
@@ -899,7 +923,7 @@ test('Cluster parts have valid intra-cluster rest (15s) between mini-sets, not 1
 test('Cluster exercises have ≥2 parts (true multi-part cluster)', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   m.macrocycles.forEach(macro => {
     macro.mesocycles.forEach(meso => {
@@ -919,7 +943,7 @@ test('Cluster exercises have ≥2 parts (true multi-part cluster)', () => {
 test('Cluster inter-set rest (exercise.rest) is 120-240s', () => {
   const m = matrix.generateMatrix(
     { weight: 100, age: 30, sex: 'male', pullUpMax: 20, pushUpMax: 50 },
-    { pullUps: 28, pushUps: 59 }
+    { pullUps: 28, pushUps: 81 }
   );
   m.macrocycles.forEach(macro => {
     macro.mesocycles.forEach(meso => {
