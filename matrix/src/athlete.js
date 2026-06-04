@@ -20,8 +20,8 @@ export function checkEligibility(profile) {
     throw new Error(`Age ${age} out of supported range (15-65)`);
   }
   
-  const pullNorms = getPullUpNorms(weight, age);
-  const pushNorms = getPushUpNorms(weight, age);
+  const pullNorms = getPullUpNorms(weight, age, sex);
+  const pushNorms = getPushUpNorms(weight, age, sex);
   const ageFactor = getAgeFactor(age);
   
   // Minimum entry = Intermediate level × age factor
@@ -66,9 +66,9 @@ function classifyLevel(maxReps, norms) {
 
 // ── Validate goals against ceiling ─────────────────────────────
 export function validateGoals(profile, goals) {
-  const { weight, age } = profile;
-  const pullNorms = getPullUpNorms(weight, age);
-  const pushNorms = getPushUpNorms(weight, age);
+  const { weight, age, sex } = profile;
+  const pullNorms = getPullUpNorms(weight, age, sex);
+  const pushNorms = getPushUpNorms(weight, age, sex);
   const ageFactor = getAgeFactor(age);
   
   const pullCeiling = Math.round(pullNorms.eli * ageFactor);
